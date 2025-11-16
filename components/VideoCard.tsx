@@ -32,49 +32,67 @@ export default function VideoCard({ video, onOpen }: VideoCardProps) {
   };
 
   return (
-    <div className="bg-dark-surface rounded-lg overflow-hidden border border-gray-800 hover:border-accent-turquoise/50 transition-all">
+    <div className="bg-dark-surface rounded-xl overflow-hidden border border-gray-800/50 hover:border-accent-turquoise/60 transition-all duration-300 hover:shadow-xl hover:shadow-accent-turquoise/10 hover:-translate-y-1 group/card animate-fade-in">
       {/* Thumbnail */}
       <div
-        className="relative aspect-video bg-gray-900 cursor-pointer group"
+        className="relative aspect-video bg-gray-900 cursor-pointer group overflow-hidden"
         onClick={() => onOpen(video)}
       >
         <img
           src={video.thumbnailUrl}
           alt={video.title}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
-        <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-          <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:scale-110 transition-transform">
-            <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+        {/* Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/20 group-hover:from-black/60 group-hover:via-black/30 group-hover:to-transparent transition-all duration-300"></div>
+        
+        {/* Play Button */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-20 h-20 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center group-hover:scale-110 group-hover:bg-white/30 transition-all duration-300 glow-turquoise">
+            <svg className="w-10 h-10 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
               <path d="M8 5v14l11-7z" />
             </svg>
           </div>
         </div>
+        
         {/* Brand Pill */}
-        <div className="absolute top-3 left-3">
-          <span className={`px-2 py-1 rounded-full text-xs font-semibold text-white ${brandColors[video.brand]}`}>
+        <div className="absolute top-3 left-3 z-10">
+          <span className={`px-3 py-1.5 rounded-full text-xs font-bold text-white shadow-lg backdrop-blur-sm ${brandColors[video.brand]} border border-white/20`}>
             {brandLabels[video.brand]}
+          </span>
+        </div>
+        
+        {/* Runtime Badge */}
+        <div className="absolute bottom-3 right-3 z-10">
+          <span className="px-2.5 py-1 rounded-md text-xs font-bold text-white bg-black/70 backdrop-blur-sm border border-white/10">
+            {video.runtime}
           </span>
         </div>
       </div>
 
       {/* Content */}
-      <div className="p-4">
-        <h3 className="text-white font-semibold text-sm mb-2 line-clamp-2">{video.title}</h3>
+      <div className="p-5">
+        <h3 className="text-white font-bold text-base mb-3 line-clamp-2 group-hover/card:text-accent-turquoise transition-colors leading-tight">
+          {video.title}
+        </h3>
         
         {/* Metadata */}
-        <div className="flex items-center gap-3 text-xs text-gray-400 mb-3">
-          <span>{video.location}</span>
-          <span>•</span>
-          <span>{video.runtime}</span>
+        <div className="flex items-center gap-2.5 text-xs text-gray-400 mb-4">
+          <div className="flex items-center gap-1.5">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span className="font-medium">{video.location}</span>
+          </div>
         </div>
 
         {/* Vibes */}
-        <div className="flex flex-wrap gap-1 mb-3">
+        <div className="flex flex-wrap gap-2 mb-4">
           {video.vibes.slice(0, 2).map((vibe) => (
             <span
               key={vibe}
-              className="px-2 py-0.5 rounded-full text-xs bg-gray-800 text-gray-300"
+              className="px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-gray-800 to-gray-700 text-gray-200 border border-gray-700/50"
             >
               {vibe}
             </span>
@@ -82,20 +100,22 @@ export default function VideoCard({ video, onOpen }: VideoCardProps) {
         </div>
 
         {/* Actions */}
-        <div className="flex items-center justify-between pt-2 border-t border-gray-800">
+        <div className="flex items-center justify-between pt-4 border-t border-gray-800/50">
           <button
             onClick={(e) => {
               e.stopPropagation();
               toggleLike(video.id);
             }}
-            className={`flex items-center gap-2 transition-colors ${
-              isLiked(video.id) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-200 ${
+              isLiked(video.id)
+                ? 'text-red-500 bg-red-500/10 hover:bg-red-500/20'
+                : 'text-gray-400 hover:text-red-500 hover:bg-red-500/10'
             }`}
           >
             <svg className="w-5 h-5" fill={isLiked(video.id) ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
             </svg>
-            <span className="text-xs">{video.likes + (isLiked(video.id) ? 1 : 0)}</span>
+            <span className="text-xs font-semibold">{video.likes + (isLiked(video.id) ? 1 : 0)}</span>
           </button>
 
           <button
@@ -103,8 +123,10 @@ export default function VideoCard({ video, onOpen }: VideoCardProps) {
               e.stopPropagation();
               toggleSave(video.id);
             }}
-            className={`transition-colors ${
-              isSaved(video.id) ? 'text-accent-turquoise' : 'text-gray-400 hover:text-accent-turquoise'
+            className={`px-3 py-1.5 rounded-lg transition-all duration-200 ${
+              isSaved(video.id)
+                ? 'text-accent-turquoise bg-accent-turquoise/10 hover:bg-accent-turquoise/20'
+                : 'text-gray-400 hover:text-accent-turquoise hover:bg-accent-turquoise/10'
             }`}
           >
             <svg className="w-5 h-5" fill={isSaved(video.id) ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
@@ -117,7 +139,7 @@ export default function VideoCard({ video, onOpen }: VideoCardProps) {
               e.stopPropagation();
               handleShare();
             }}
-            className="text-gray-400 hover:text-accent-turquoise transition-colors"
+            className="text-gray-400 hover:text-accent-turquoise px-3 py-1.5 rounded-lg hover:bg-accent-turquoise/10 transition-all duration-200"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
@@ -128,8 +150,8 @@ export default function VideoCard({ video, onOpen }: VideoCardProps) {
 
       {/* Toast */}
       {showToast && (
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-accent-turquoise text-dark-bg px-4 py-2 rounded-lg text-sm font-semibold">
-          Link copied!
+        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-accent-turquoise text-dark-bg px-4 py-2 rounded-lg text-sm font-bold shadow-xl glow-turquoise z-50 animate-fade-in">
+          ✨ Link copied!
         </div>
       )}
     </div>
