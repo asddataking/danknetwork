@@ -10,10 +10,24 @@ interface PlaceCardProps {
 }
 
 export default function PlaceCard({ place, isSelected, onSelect }: PlaceCardProps) {
+  const handleClick = (e: React.MouseEvent) => {
+    // If clicking on a link, let it handle navigation
+    if ((e.target as HTMLElement).closest('a')) {
+      return;
+    }
+    // Otherwise, navigate to detail page if slug exists
+    if (place.slug) {
+      window.location.href = `/place/${place.slug}`;
+    } else {
+      // Fallback to selecting on map
+      onSelect();
+    }
+  };
+
   return (
     <div
       id={`place-${place.id}`}
-      onClick={onSelect}
+      onClick={handleClick}
       className={`bg-dark-surface rounded-lg border-2 p-2.5 cursor-pointer transition-all duration-200 ${
         isSelected
           ? 'border-neon-green shadow-lg shadow-neon-green/30'

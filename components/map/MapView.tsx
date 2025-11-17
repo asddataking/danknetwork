@@ -127,11 +127,19 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
     };
   }, []);
 
-  // Initialize clustering
+  // Initialize clustering and markers
   useEffect(() => {
     if (places.length > 0 && map.current && map.current.loaded()) {
+      console.log(`[MapView] Initializing markers for ${places.length} places`);
+      
       const points = places
-        .filter((p) => p.latitude && p.longitude)
+        .filter((p) => {
+          const hasCoords = p.latitude && p.longitude;
+          if (!hasCoords) {
+            console.warn(`[MapView] Place ${p.id || p.name} missing coordinates`);
+          }
+          return hasCoords;
+        })
         .map((place) => ({
           type: 'Feature' as const,
           properties: { place },
@@ -140,6 +148,8 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
             coordinates: [place.longitude, place.latitude],
           },
         }));
+
+      console.log(`[MapView] Created ${points.length} points for clustering`);
 
       clusterRef.current = new Supercluster({
         radius: 50,
@@ -155,7 +165,15 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
 
   const updateMarkers = () => {
     const currentMap = map.current;
-    if (!currentMap || !currentMap.loaded() || !clusterRef.current) return;
+    if (!currentMap || !currentMap.loaded()) {
+      console.warn('[MapView] Map not loaded, skipping marker update');
+      return;
+    }
+
+    if (!clusterRef.current) {
+      console.warn('[MapView] Cluster ref not initialized, skipping marker update');
+      return;
+    }
 
     // Clear existing markers
     markersRef.current.forEach((m) => m.remove());
@@ -173,6 +191,8 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
 
     const zoom = Math.floor(currentMap.getZoom());
     const clusters = clusterRef.current.getClusters(bbox, zoom);
+    
+    console.log(`[MapView] Rendering ${clusters.length} clusters/markers at zoom ${zoom}`);
 
     clusters.forEach((cluster) => {
       if (cluster.properties.cluster) {
@@ -193,9 +213,10 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
         el.style.color = '#000';
         el.style.cursor = 'pointer';
         el.style.boxShadow = '0 0 10px rgba(0, 255, 0, 0.6)';
+        el.style.zIndex = '1000';
         el.textContent = pointCount.toString();
 
-        const marker = new maplibregl.Marker(el)
+        const marker = new maplibregl.Marker({ element: el })
           .setLngLat([cluster.geometry.coordinates[0], cluster.geometry.coordinates[1]])
           .addTo(currentMap);
 
@@ -214,12 +235,17 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
       } else {
         // Render individual place marker
         const place = cluster.properties.place as Place;
+        if (!place || !place.latitude || !place.longitude) {
+          console.warn('[MapView] Invalid place in cluster:', place);
+          return;
+        }
+        
         const isSelected = selectedPlace?.id === place.id;
 
         const el = document.createElement('div');
         el.className = 'marker';
-        el.style.width = place.is_verified ? '26px' : '22px';
-        el.style.height = place.is_verified ? '26px' : '22px';
+        el.style.width = place.is_verified ? '24px' : '20px';
+        el.style.height = place.is_verified ? '24px' : '20px';
         el.style.borderRadius = '50%';
         el.style.backgroundColor = isSelected
           ? '#00ff00'
@@ -234,6 +260,8 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
           ? '0 0 10px rgba(0, 255, 0, 0.8)'
           : '0 0 5px rgba(0, 204, 0, 0.5)';
         el.style.transition = 'all 0.2s';
+        el.style.zIndex = isSelected ? '1001' : '1000';
+        el.style.position = 'relative';
 
         // Determine if this is a dispensary or restaurant
         const isDispensary = place.tags?.includes('Dispensary') || place.cuisines?.includes('Cannabis');
@@ -287,10 +315,12 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
           </div>
         `);
 
-        const marker = new maplibregl.Marker(el)
+        const marker = new maplibregl.Marker({ element: el })
           .setLngLat([place.longitude, place.latitude])
           .setPopup(clickPopup)
           .addTo(currentMap);
+        
+        console.log(`[MapView] Added marker for ${place.name} at [${place.longitude}, ${place.latitude}]`);
 
         // Show hover popup on mouseenter, hide on mouseout
         let hoverPopupOpen = false;
