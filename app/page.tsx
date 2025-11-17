@@ -4,9 +4,10 @@ import { useState, useMemo } from 'react';
 import { videos } from '@/data/videos';
 import FeaturedEpisodeHero from '@/components/FeaturedEpisodeHero';
 // import ChannelCarousel from '@/components/ChannelCarousel'; // Hidden for now (only 1 active channel)
-import MerchShowcase from '@/components/MerchShowcase';
+import ShopShowcase from '@/components/ShopShowcase';
 import DealsSection from '@/components/DealsSection';
 import TrendingSection from '@/components/TrendingSection';
+import FeedTheCrew from '@/components/FeedTheCrew';
 import FilterChips from '@/components/FilterChips';
 import VideoFeed from '@/components/VideoFeed';
 
@@ -50,9 +51,9 @@ export default function HomePage() {
           <ChannelCarousel />
         </div> */}
 
-        {/* Merch Showcase */}
+        {/* Shop Showcase */}
         <div className="mb-12">
-          <MerchShowcase />
+          <ShopShowcase />
         </div>
 
         {/* Deals & Gear Section */}
@@ -63,6 +64,11 @@ export default function HomePage() {
         {/* Trending Section */}
         <div className="mb-12">
           <TrendingSection title="Trending Now" videos={trendingVideos} />
+        </div>
+
+        {/* Feed the Crew */}
+        <div className="mb-12">
+          <FeedTheCrew />
         </div>
 
         {/* Filters */}
