@@ -30,10 +30,13 @@ FW_DONATION_PRODUCT_HANDLE=donation
 ```env
 NEXT_PUBLIC_MAPTILER_KEY=your_maptiler_key
 # OR
-NEXT_PUBLIC_MAPBOX_PUBLIC_TOKEN=your_mapbox_token
+NEXT_PUBLIC_MAPBOX_PUBLIC_TOKEN=your_mapbox_public_token
+MAPBOX_SECRET_TOKEN=your_mapbox_secret_token
 ```
 
-If neither is provided, the map will use OpenStreetMap tiles (free but may have rate limits).
+**Note:** The public token is used for client-side map rendering. The secret token can be used for server-side geocoding or other advanced features if needed.
+
+If neither MapTiler nor Mapbox is provided, the map will use OpenStreetMap tiles (free but may have rate limits).
 
 ## Setup Instructions
 

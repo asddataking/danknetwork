@@ -136,7 +136,8 @@ export default function MunchieMap({ initialPlaces = [], filters = {} }: Munchie
   };
 
   const addPlacesToMap = (placesData: Place[]) => {
-    if (!map.current) return;
+    const currentMap = map.current;
+    if (!currentMap) return;
 
     // Remove existing markers
     markersRef.current.forEach((marker) => marker.remove());
@@ -185,7 +186,7 @@ export default function MunchieMap({ initialPlaces = [], filters = {} }: Munchie
       const marker = new maplibregl.Marker(el)
         .setLngLat([place.longitude, place.latitude])
         .setPopup(popup)
-        .addTo(map.current);
+        .addTo(currentMap);
 
       markersRef.current.push(marker);
 
