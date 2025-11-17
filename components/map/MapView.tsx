@@ -235,16 +235,24 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
           : '0 0 5px rgba(0, 204, 0, 0.5)';
         el.style.transition = 'all 0.2s';
 
+        // Determine if this is a dispensary or restaurant
+        const isDispensary = place.tags?.includes('Dispensary') || place.cuisines?.includes('Cannabis');
+        const placeType = isDispensary ? 'Dispensary' : 'Restaurant';
+
         const popup = new maplibregl.Popup({ offset: 25, className: 'map-popup' }).setHTML(`
           <div class="text-black p-3 min-w-[200px]">
             <div class="flex items-start justify-between mb-2">
-              <h3 class="font-bold text-lg">${place.name}</h3>
+              <div class="flex-1">
+                <h3 class="font-bold text-lg">${place.name}</h3>
+                <span class="text-xs text-gray-500 uppercase">${placeType}</span>
+              </div>
               ${place.is_verified ? '<span class="text-xs bg-green-500 text-white px-2 py-1 rounded">✓ Verified</span>' : ''}
             </div>
             ${place.address ? `<p class="text-sm text-gray-600 mb-1">${place.address}</p>` : ''}
             ${place.city ? `<p class="text-sm text-gray-600 mb-1">${place.city}${place.state ? `, ${place.state}` : ''}</p>` : ''}
             ${place.rating ? `<p class="text-sm text-gray-600 mb-1">⭐ ${place.rating.toFixed(1)}</p>` : ''}
-            ${place.cuisines && place.cuisines.length > 0 ? `<p class="text-xs text-gray-500 mt-2">${place.cuisines.join(', ')}</p>` : ''}
+            ${place.cuisines && place.cuisines.length > 0 ? `<p class="text-xs text-gray-500 mt-2">${place.cuisines.filter((c: string) => c !== 'Cannabis').join(', ') || place.cuisines.join(', ')}</p>` : ''}
+            ${place.tags && place.tags.length > 0 ? `<p class="text-xs text-gray-400 mt-1">${place.tags.filter((t: string) => !t.includes('Featured') && t !== 'Dispensary' && t !== 'Michigan Munchie Map').slice(0, 3).join(' • ')}</p>` : ''}
             <div class="mt-3 flex gap-2">
               <a 
                 href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${place.name} ${place.address || ''} ${place.city || ''}`)}"

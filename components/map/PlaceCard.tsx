@@ -39,7 +39,16 @@ export default function PlaceCard({ place, isSelected, onSelect }: PlaceCardProp
         {/* Content */}
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2 mb-2">
-            <h3 className="text-white font-bold text-lg line-clamp-1">{place.name}</h3>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-white font-bold text-lg line-clamp-1">{place.name}</h3>
+              {/* Show type (Restaurant or Dispensary) */}
+              {(place.tags?.includes('Dispensary') || place.cuisines?.includes('Cannabis')) && (
+                <span className="text-xs text-neon-green uppercase font-semibold">Dispensary</span>
+              )}
+              {!(place.tags?.includes('Dispensary') || place.cuisines?.includes('Cannabis')) && (
+                <span className="text-xs text-gray-400 uppercase font-semibold">Restaurant</span>
+              )}
+            </div>
             <div className="flex gap-1 flex-shrink-0">
               {place.is_verified && (
                 <span className="bg-neon-green text-black px-2 py-1 rounded text-xs font-bold uppercase">

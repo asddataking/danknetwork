@@ -99,17 +99,16 @@ class FourthwallClient {
       }
 
       // Transform cached products
-      const products = data
+      const products: FourthwallProduct[] = data
         .map((item: any) => {
           const product = item.raw_data;
           if (!product) return null;
 
-          return {
+          const transformed: FourthwallProduct = {
             id: product.id || item.product_id,
             title: product.title || product.name || '',
             handle: product.handle || '',
             price: parseFloat(product.price || item.price || 0),
-            compareAtPrice: product.compareAtPrice,
             images: product.images || (item.image_url ? [item.image_url] : []),
             available: item.in_stock !== false && product.available !== false,
             variants: product.variants || [],
@@ -118,6 +117,12 @@ class FourthwallClient {
             description: product.description || '',
             tags: product.tags || [],
           };
+
+          if (product.compareAtPrice !== undefined) {
+            transformed.compareAtPrice = product.compareAtPrice;
+          }
+
+          return transformed;
         })
         .filter((p): p is FourthwallProduct => p !== null);
 

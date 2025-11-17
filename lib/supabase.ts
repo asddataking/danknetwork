@@ -130,19 +130,26 @@ export class PlacesService {
         return [];
       }
 
-      // Use RPC to get places with extracted coordinates, or fallback to direct query
-      try {
-        // Try using a SQL query that extracts coordinates
-        const { data, error } = await client.rpc('get_all_published_places').catch(async () => {
-          // Fallback: direct query with coordinate extraction via SQL
-          return client
-            .from('places')
-            .select('id, slug, name, address, city, county, state, zip, cuisines, tags, price_level, rating, website, menu_url, phone, ig_url, hours, hero_image_url, is_featured, is_verified, status, created_at, updated_at')
-            .eq('status', 'published')
-            .order('is_featured', { ascending: false })
-            .order('created_at', { ascending: false })
-            .limit(1000);
-        });
+          // Use RPC to get places with extracted coordinates, or fallback to direct query
+          try {
+            // Try using a SQL query that extracts coordinates
+            let data, error;
+            try {
+              const result = await client.rpc('get_all_published_places');
+              data = result.data;
+              error = result.error;
+            } catch (rpcError) {
+              // RPC doesn't exist, use direct query
+              const result = await client
+                .from('places')
+                .select('id, slug, name, address, city, county, state, zip, cuisines, tags, price_level, rating, website, menu_url, phone, ig_url, hours, hero_image_url, is_featured, is_verified, status, created_at, updated_at')
+                .eq('status', 'published')
+                .order('is_featured', { ascending: false })
+                .order('created_at', { ascending: false })
+                .limit(1000);
+              data = result.data;
+              error = result.error;
+            }
 
         if (error) {
           console.error('[PlacesService] RPC error:', error);
