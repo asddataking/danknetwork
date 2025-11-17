@@ -39,21 +39,11 @@ export async function GET(request: Request) {
       places = await PlacesService.searchPlaces(search, filters);
     }
 
-    // Transform places to include lat/lng from PostGIS geography if needed
-    const transformedPlaces = places.map((place: any) => {
-      // If location is a PostGIS geography object, extract coordinates
-      if (place.location && typeof place.location === 'object') {
-        const coords = place.location.coordinates || [];
-        return {
-          ...place,
-          longitude: coords[0] || place.longitude,
-          latitude: coords[1] || place.latitude,
-        };
-      }
-      return place;
-    });
+    // PlacesService already handles GeoJSON transformation
+    // Just filter out any places without coordinates as a safety check
+    const validPlaces = places.filter((place: any) => place.latitude && place.longitude);
 
-    return NextResponse.json({ places: transformedPlaces });
+    return NextResponse.json({ places: validPlaces });
   } catch (error) {
     console.error('Error fetching places:', error);
     return NextResponse.json({ places: [] }, { status: 500 });

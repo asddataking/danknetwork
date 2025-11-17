@@ -42,12 +42,79 @@ export class PlacesService {
         max_lat: maxLat,
       });
 
-      if (error) throw error;
-      return data || [];
+      if (error) {
+        console.error('RPC error, falling back to direct query:', error);
+        // Fallback: query with bounding box using PostGIS
+        return this.getPlacesInBoundsDirect(minLng, minLat, maxLng, maxLat);
+      }
+      
+      // RPC returns location as GeoJSON: { type: 'Point', coordinates: [lng, lat] }
+      return (data || []).map((place: any) => {
+        if (place.location && place.location.coordinates) {
+          return {
+            ...place,
+            longitude: place.location.coordinates[0],
+            latitude: place.location.coordinates[1],
+          };
+        }
+        return place;
+      });
     } catch (error) {
       console.error('Error fetching places in bounds:', error);
       // Fallback to simple query if RPC doesn't exist
       return this.getPlacesSimple();
+    }
+  }
+
+  /**
+   * Direct query for places in bounds (fallback)
+   */
+  private static async getPlacesInBoundsDirect(
+    minLng: number,
+    minLat: number,
+    maxLng: number,
+    maxLat: number
+  ): Promise<Place[]> {
+    try {
+      const client = getSupabaseClient();
+      if (!client) {
+        return [];
+      }
+
+      // Use a bounding box query with PostGIS
+      // This is a simplified version - the RPC function should be preferred
+      const { data, error } = await client
+        .from('places')
+        .select('*')
+        .eq('status', 'published')
+        .limit(500);
+
+      if (error) throw error;
+
+      // Filter by bounds and extract coordinates
+      return (data || [])
+        .map((place: any) => {
+          // Extract lat/lng from geography if needed
+          if (place.location && typeof place.location === 'object' && !place.latitude) {
+            if (place.location.coordinates) {
+              place.longitude = place.location.coordinates[0];
+              place.latitude = place.location.coordinates[1];
+            }
+          }
+          return place;
+        })
+        .filter((place: any) => {
+          if (!place.latitude || !place.longitude) return false;
+          return (
+            place.longitude >= minLng &&
+            place.longitude <= maxLng &&
+            place.latitude >= minLat &&
+            place.latitude <= maxLat
+          );
+        });
+    } catch (error) {
+      console.error('Error in direct bounds query:', error);
+      return [];
     }
   }
 
@@ -61,6 +128,7 @@ export class PlacesService {
         return [];
       }
 
+      // Query places - Supabase returns geography as GeoJSON when selected directly
       const { data, error } = await client
         .from('places')
         .select('*')
@@ -70,7 +138,23 @@ export class PlacesService {
         .limit(1000);
 
       if (error) throw error;
-      return data || [];
+      
+      // Transform data to extract lat/lng from geography GeoJSON
+      // Direct select returns: { type: 'Point', coordinates: [lng, lat] }
+      const places = (data || []).map((place: any) => {
+        if (place.location && typeof place.location === 'object') {
+          if (place.location.coordinates && Array.isArray(place.location.coordinates) && place.location.coordinates.length >= 2) {
+            return {
+              ...place,
+              longitude: place.location.coordinates[0],
+              latitude: place.location.coordinates[1],
+            };
+          }
+        }
+        return place;
+      }).filter((place: any) => place.latitude && place.longitude);
+      
+      return places;
     } catch (error) {
       console.error('Error fetching places:', error);
       return [];
@@ -90,6 +174,8 @@ export class PlacesService {
         return [];
       }
 
+      // Use a query that extracts lat/lng from geography
+      // We'll select all fields and let the API route handle coordinate extraction
       let query = client
         .from('places')
         .select('*')
@@ -139,7 +225,22 @@ export class PlacesService {
         .limit(500);
 
       if (error) throw error;
-      return data || [];
+      
+      // Transform data to extract lat/lng from geography GeoJSON
+      const places = (data || []).map((place: any) => {
+        if (place.location && typeof place.location === 'object') {
+          if (place.location.coordinates && Array.isArray(place.location.coordinates) && place.location.coordinates.length >= 2) {
+            return {
+              ...place,
+              longitude: place.location.coordinates[0],
+              latitude: place.location.coordinates[1],
+            };
+          }
+        }
+        return place;
+      }).filter((place: any) => place.latitude && place.longitude);
+      
+      return places;
     } catch (error) {
       console.error('Error searching places:', error);
       return [];

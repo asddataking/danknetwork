@@ -47,6 +47,7 @@ class FourthwallClient {
 
   /**
    * Fetch products from Fourthwall Storefront API
+   * Storefront API endpoint: https://[shop].fourthwall.com/api/storefront/products
    */
   async getProducts(options: {
     category?: string;
@@ -54,13 +55,20 @@ class FourthwallClient {
     featured?: boolean;
   } = {}): Promise<FourthwallProduct[]> {
     try {
-      // Try Storefront API first
+      // Check if we have required credentials
+      if (!this.storefrontToken || !this.shopUrl) {
+        console.warn('Fourthwall credentials missing, falling back to JSON feed');
+        return await this.getProductsFromFeed(options);
+      }
+
+      // Build Storefront API URL
+      // Format: https://[shop].fourthwall.com/api/storefront/products
       const storefrontUrl = `${this.shopUrl}/api/storefront/products`;
       const params = new URLSearchParams();
       
       if (options.category) {
         params.append('collection', options.category);
-      } else if (this.collectionSlug !== 'all') {
+      } else if (this.collectionSlug && this.collectionSlug !== 'all') {
         params.append('collection', this.collectionSlug);
       }
       
@@ -68,22 +76,45 @@ class FourthwallClient {
         params.append('limit', options.limit.toString());
       }
 
-      const response = await fetch(`${storefrontUrl}?${params.toString()}`, {
+      const url = params.toString() ? `${storefrontUrl}?${params.toString()}` : storefrontUrl;
+      
+      const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${this.storefrontToken}`,
           'Content-Type': 'application/json',
         },
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        return this.transformProducts(data.products || data);
+      if (!response.ok) {
+        console.error(`Fourthwall Storefront API error: ${response.status} ${response.statusText}`);
+        // Fallback to public JSON feed
+        return await this.getProductsFromFeed(options);
       }
 
-      // Fallback to public JSON feed
-      return await this.getProductsFromFeed(options);
+      const data = await response.json();
+      
+      // Storefront API returns { products: [...] } or just an array
+      const products = data.products || data;
+      
+      if (!Array.isArray(products)) {
+        console.error('Fourthwall API returned invalid format:', data);
+        return await this.getProductsFromFeed(options);
+      }
+
+      const transformed = this.transformProducts(products);
+      
+      // Apply featured filter if needed
+      if (options.featured) {
+        return transformed.filter(p => 
+          p.tags?.includes('featured') || 
+          p.tags?.includes('Featured') ||
+          p.collection === 'featured'
+        );
+      }
+
+      return transformed;
     } catch (error) {
-      console.error('Fourthwall API error:', error);
+      console.error('Fourthwall Storefront API error:', error);
       // Fallback to public JSON feed
       return await this.getProductsFromFeed(options);
     }
@@ -137,29 +168,80 @@ class FourthwallClient {
 
   /**
    * Transform Storefront API products to our format
+   * Storefront API format may vary, handle both formats
    */
   private transformProducts(products: any[]): FourthwallProduct[] {
-    return products.map((product: any) => ({
-      id: product.id || product.handle,
-      title: product.title,
-      handle: product.handle,
-      price: parseFloat(product.price || product.variants?.[0]?.price || 0) / 100,
-      compareAtPrice: product.compareAtPrice 
-        ? parseFloat(product.compareAtPrice) / 100 
-        : undefined,
-      images: product.images?.map((img: any) => img.src || img.url) || [],
-      available: product.available !== false,
-      variants: product.variants?.map((v: any) => ({
-        id: v.id,
-        title: v.title,
-        price: parseFloat(v.price || 0) / 100,
-        available: v.available !== false,
-      })) || [],
-      checkoutUrl: product.checkoutUrl || `${this.shopUrl}/products/${product.handle}`,
-      collection: product.collection?.handle,
-      description: product.description,
-      tags: product.tags || [],
-    }));
+    return products.map((product: any) => {
+      // Handle price - could be in cents or dollars
+      let price = 0;
+      if (product.price) {
+        price = typeof product.price === 'string' 
+          ? parseFloat(product.price) 
+          : product.price;
+        // If price > 1000, assume it's in cents
+        if (price > 1000) price = price / 100;
+      } else if (product.variants?.[0]?.price) {
+        price = typeof product.variants[0].price === 'string'
+          ? parseFloat(product.variants[0].price)
+          : product.variants[0].price;
+        if (price > 1000) price = price / 100;
+      }
+
+      // Handle images - could be array of strings or objects
+      let images: string[] = [];
+      if (product.images) {
+        images = product.images.map((img: any) => {
+          if (typeof img === 'string') return img;
+          return img.src || img.url || img;
+        });
+      } else if (product.image) {
+        images = [typeof product.image === 'string' ? product.image : product.image.src || product.image.url];
+      }
+
+      // Handle checkout URL
+      const checkoutUrl = product.checkoutUrl 
+        || product.url 
+        || (product.handle ? `${this.shopUrl}/products/${product.handle}` : this.shopUrl);
+
+      // Handle tags - could be array or comma-separated string
+      let tags: string[] = [];
+      if (product.tags) {
+        tags = Array.isArray(product.tags) 
+          ? product.tags 
+          : product.tags.split(',').map((t: string) => t.trim());
+      }
+
+      return {
+        id: product.id?.toString() || product.handle || `product-${Math.random()}`,
+        title: product.title || product.name || 'Untitled Product',
+        handle: product.handle || product.slug || '',
+        price,
+        compareAtPrice: product.compareAtPrice 
+          ? (typeof product.compareAtPrice === 'string' 
+              ? parseFloat(product.compareAtPrice) 
+              : product.compareAtPrice) / (product.compareAtPrice > 1000 ? 100 : 1)
+          : undefined,
+        images,
+        available: product.available !== false && product.inventory_quantity !== 0,
+        variants: product.variants?.map((v: any) => {
+          let variantPrice = 0;
+          if (v.price) {
+            variantPrice = typeof v.price === 'string' ? parseFloat(v.price) : v.price;
+            if (variantPrice > 1000) variantPrice = variantPrice / 100;
+          }
+          return {
+            id: v.id?.toString() || '',
+            title: v.title || v.name || 'Default',
+            price: variantPrice,
+            available: v.available !== false && v.inventory_quantity !== 0,
+          };
+        }) || [],
+        checkoutUrl,
+        collection: product.collection?.handle || product.collection || product.collection_id,
+        description: product.description || product.body_html || '',
+        tags,
+      };
+    });
   }
 
   /**
