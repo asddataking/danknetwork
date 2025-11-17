@@ -26,12 +26,26 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
     const maptilerKey = process.env.NEXT_PUBLIC_MAPTILER_KEY || '';
     const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_PUBLIC_TOKEN || '';
 
-    // Debug: Log token info (both accounts share the same public token)
+    // Debug: Log token info
     if (mapboxToken) {
       console.log('[MapView] Mapbox public token configured (length:', mapboxToken.length + ')');
       console.log('[MapView] Token starts with:', mapboxToken.substring(0, 10) + '...');
-      console.log('[MapView] Note: Both accounts share the same public token');
-      console.log('[MapView] URL restrictions are set per-account in Mapbox dashboard');
+      // Decode token to verify which account it belongs to
+      try {
+        const tokenParts = mapboxToken.split('.');
+        if (tokenParts.length >= 2) {
+          const payload = JSON.parse(atob(tokenParts[1]));
+          const accountName = payload.u || 'unknown';
+          console.log('[MapView] Token account:', accountName);
+          if (accountName === 'dankndevour') {
+            console.warn('[MapView] ⚠️ Still using dankndevour token - update NEXT_PUBLIC_MAPBOX_PUBLIC_TOKEN in Vercel');
+          } else {
+            console.log('[MapView] ✓ Using Dank Network token');
+          }
+        }
+      } catch (e) {
+        // Token decode failed, continue anyway
+      }
     }
 
     // Initialize map with MapTiler or Mapbox (matching reference implementation exactly)
@@ -70,25 +84,38 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
       'top-right'
     );
 
-    // Handle map load (matching reference exactly - simple, no complex error handling)
+    // Handle map load (matching reference exactly)
     map.current.on('load', () => {
+      console.log('[MapView] Map loaded successfully');
       setLoading(false);
     });
 
-    // Handle errors - log helpful message for 404 (likely URL restrictions)
+    // Handle style loading errors
+    map.current.on('style.loading', () => {
+      console.log('[MapView] Style loading...');
+    });
+
+    // Handle errors - but don't block map rendering
+    // The map may still work even if style.json returns 404 initially
     map.current.on('error', (e: any) => {
+      console.error('[MapView] Map error:', e);
       if (e.error?.status === 404) {
-        console.error('[MapView] Mapbox 404 error detected');
-        console.error('[MapView] Since both accounts share the same public token:');
-        console.error('1. Check URL restrictions on BOTH accounts in Mapbox dashboard');
-        console.error('2. For Dank Network account: https://account.mapbox.com/access-tokens/');
-        console.error('3. Ensure "*.vercel.app" is in the allowed URLs list');
-        console.error('4. Token restrictions may need to be updated on the Dank Network account');
-        console.error('5. After updating, you may need to wait a few minutes for changes to propagate');
-        console.error('[MapView] Test token directly:', mapStyleRef.current?.split('?')[0] + '?access_token=YOUR_TOKEN');
+        console.error('[MapView] 404 error - Mapbox style not accessible');
+        console.error('[MapView] Solution: Create a NEW public token in Dank Network account');
+        console.error('1. Go to Dank Network Mapbox account → Access Tokens');
+        console.error('2. Create a NEW public token (don\'t refresh the existing one)');
+        console.error('3. Set URL restrictions to include "*.vercel.app" and your production domain');
+        console.error('4. Update NEXT_PUBLIC_MAPBOX_PUBLIC_TOKEN in Vercel with the new token');
+        console.error('5. This keeps dankndevour working with its token, and Dank Network has its own');
+        // Don't set loading to false - let map continue trying
+        // MapLibre may retry or use cached style
       }
-      // Don't set loading to false here - let map try to load anyway
-      // Sometimes the error is transient or the map can still render
+    });
+
+    // Handle style errors separately
+    map.current.on('style.error', (e: any) => {
+      console.error('[MapView] Style error:', e);
+      // Still don't block - map might render with default style
     });
 
     map.current.on('moveend', () => {

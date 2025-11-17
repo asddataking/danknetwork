@@ -14,15 +14,11 @@ export async function GET(request: NextRequest) {
       : undefined;
     const featured = searchParams.get('featured') === 'true';
 
-    console.log('[Products API] Fetching products with options:', { category, limit, featured });
-
     const products = await fourthwallClient.getProducts({
       category,
       limit,
       featured,
     });
-
-    console.log(`[Products API] Returning ${products.length} products`);
 
     return NextResponse.json({ products }, { status: 200 });
   } catch (error) {

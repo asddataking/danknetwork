@@ -25,7 +25,7 @@ self.addEventListener('fetch', (event) => {
   // Skip service worker for:
   // 1. Mapbox tile services
   // 2. API routes
-  // 3. External resources (not same origin)
+  // 3. External resources (not same origin) - images, fonts, etc.
   // 4. MapLibre GL resources
   const isMapTile = url.hostname.includes('mapbox.com');
   
@@ -37,7 +37,15 @@ self.addEventListener('fetch', (event) => {
     url.pathname.includes('maplibre') ||
     url.pathname.includes('mapbox-gl');
   
-  if (isMapTile || isApiRoute || (isExternal && !url.pathname.startsWith('/')) || isMapLibreResource) {
+  // Skip external images, fonts, and other external resources
+  const isExternalResource = isExternal && (
+    url.pathname.match(/\.(jpg|jpeg|png|gif|webp|svg|woff|woff2|ttf|eot)$/i) ||
+    url.hostname.includes('unsplash.com') ||
+    url.hostname.includes('ytimg.com') ||
+    url.hostname.includes('youtube.com')
+  );
+  
+  if (isMapTile || isApiRoute || isExternalResource || isMapLibreResource) {
     // Don't intercept - let these requests go directly to network
     return;
   }
