@@ -1,11 +1,9 @@
 'use client';
 
-import { useState } from 'react';
 import dynamic from 'next/dynamic';
-import MapFilters from '@/components/map/MapFilters';
 
-// Dynamically import the map component to avoid SSR issues
-const MunchieMap = dynamic(() => import('@/components/map/MunchieMap'), {
+// Dynamically import to avoid SSR issues
+const MapContainerDynamic = dynamic(() => import('@/components/map/MapContainer'), {
   ssr: false,
   loading: () => (
     <div className="w-full h-screen bg-dark-surface flex items-center justify-center">
@@ -18,14 +16,6 @@ const MunchieMap = dynamic(() => import('@/components/map/MunchieMap'), {
 });
 
 export default function MunchieMapPage() {
-  const [filters, setFilters] = useState<any>({});
-
-  const handleFilterChange = (newFilters: any) => {
-    setFilters(newFilters);
-    // Trigger map refresh with new filters
-    // This will be handled by the map component listening to filter changes
-  };
-
   return (
     <div className="min-h-screen bg-black">
       {/* Header Section */}
@@ -40,18 +30,8 @@ export default function MunchieMapPage() {
         </div>
       </div>
 
-      {/* Filters and Map Container */}
-      <div className="flex flex-col lg:flex-row h-[calc(100vh-200px)]">
-        {/* Filters Sidebar */}
-        <div className="lg:w-80 bg-dark-surface border-r border-neon-green/20 p-4 overflow-y-auto">
-          <MapFilters onFilterChange={handleFilterChange} />
-        </div>
-
-        {/* Map Container */}
-        <div className="flex-1 relative">
-          <MunchieMap filters={filters} />
-        </div>
-      </div>
+      {/* Map Container with Split View */}
+      <MapContainerDynamic />
     </div>
   );
 }
