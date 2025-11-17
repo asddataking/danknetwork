@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { videos } from '@/data/videos';
 import FeaturedEpisodeHero from '@/components/FeaturedEpisodeHero';
-import ChannelCarousel from '@/components/ChannelCarousel';
+// import ChannelCarousel from '@/components/ChannelCarousel'; // Hidden for now (only 1 active channel)
 import MerchShowcase from '@/components/MerchShowcase';
 import DealsSection from '@/components/DealsSection';
 import TrendingSection from '@/components/TrendingSection';
@@ -45,10 +45,10 @@ export default function HomePage() {
           <FeaturedEpisodeHero episode={featuredEpisode} />
         </div>
 
-        {/* Channel Carousel */}
-        <div className="mb-12">
+        {/* Channel Carousel - Hidden for now (only 1 active channel) */}
+        {/* <div className="mb-12">
           <ChannelCarousel />
-        </div>
+        </div> */}
 
         {/* Merch Showcase */}
         <div className="mb-12">
