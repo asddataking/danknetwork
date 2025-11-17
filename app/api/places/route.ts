@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import { PlacesService } from '@/lib/supabase';
 import { PlacesQueryParams } from '@/types/place';
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -43,10 +47,15 @@ export async function GET(request: Request) {
     // Just filter out any places without coordinates as a safety check
     const validPlaces = places.filter((place: any) => place.latitude && place.longitude);
 
+    console.log(`[API] Returning ${validPlaces.length} places (from ${places.length} total)`);
+    
     return NextResponse.json({ places: validPlaces });
   } catch (error) {
-    console.error('Error fetching places:', error);
-    return NextResponse.json({ places: [] }, { status: 500 });
+    console.error('[API] Error fetching places:', error);
+    return NextResponse.json({ 
+      places: [],
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }
 

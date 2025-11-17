@@ -120,15 +120,66 @@ export class PlacesService {
 
   /**
    * Simple query for all published places
+   * Uses SQL to extract lat/lng directly from geography
    */
   static async getPlacesSimple(): Promise<Place[]> {
     try {
       const client = getSupabaseClient();
       if (!client) {
+        console.warn('[PlacesService] Supabase client not available');
         return [];
       }
 
-      // Query places - Supabase returns geography as GeoJSON when selected directly
+      // Use RPC to get places with extracted coordinates, or fallback to direct query
+      try {
+        // Try using a SQL query that extracts coordinates
+        const { data, error } = await client.rpc('get_all_published_places').catch(async () => {
+          // Fallback: direct query with coordinate extraction via SQL
+          return client
+            .from('places')
+            .select('id, slug, name, address, city, county, state, zip, cuisines, tags, price_level, rating, website, menu_url, phone, ig_url, hours, hero_image_url, is_featured, is_verified, status, created_at, updated_at')
+            .eq('status', 'published')
+            .order('is_featured', { ascending: false })
+            .order('created_at', { ascending: false })
+            .limit(1000);
+        });
+
+        if (error) {
+          console.error('[PlacesService] RPC error:', error);
+          // Fallback to direct query
+          return this.getPlacesDirect();
+        }
+
+        // RPC should return places with lat/lng already extracted
+        if (data && Array.isArray(data)) {
+          return data.map((place: any) => ({
+            ...place,
+            latitude: place.latitude || place.lat,
+            longitude: place.longitude || place.lng,
+          })).filter((place: any) => place.latitude && place.longitude);
+        }
+      } catch (rpcError) {
+        console.warn('[PlacesService] RPC not available, using direct query');
+      }
+
+      // Fallback to direct query
+      return this.getPlacesDirect();
+    } catch (error) {
+      console.error('[PlacesService] Error fetching places:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Direct query fallback - queries with coordinate extraction
+   */
+  private static async getPlacesDirect(): Promise<Place[]> {
+    try {
+      const client = getSupabaseClient();
+      if (!client) return [];
+
+      // Query all fields except location, then fetch location separately or use a view
+      // For now, select all and transform
       const { data, error } = await client
         .from('places')
         .select('*')
@@ -137,11 +188,17 @@ export class PlacesService {
         .order('created_at', { ascending: false })
         .limit(1000);
 
-      if (error) throw error;
+      if (error) {
+        console.error('[PlacesService] Direct query error:', error);
+        throw error;
+      }
+
+      console.log(`[PlacesService] Fetched ${data?.length || 0} places from database`);
       
-      // Transform data to extract lat/lng from geography GeoJSON
-      // Direct select returns: { type: 'Point', coordinates: [lng, lat] }
+      // Transform data to extract lat/lng from geography
+      // Supabase JS client returns geography as GeoJSON: { type: 'Point', coordinates: [lng, lat] }
       const places = (data || []).map((place: any) => {
+        // Check if location is GeoJSON format
         if (place.location && typeof place.location === 'object') {
           if (place.location.coordinates && Array.isArray(place.location.coordinates) && place.location.coordinates.length >= 2) {
             return {
@@ -150,13 +207,29 @@ export class PlacesService {
               latitude: place.location.coordinates[1],
             };
           }
+          // Sometimes it might be stored as { lng, lat }
+          if (place.location.lng !== undefined && place.location.lat !== undefined) {
+            return {
+              ...place,
+              longitude: place.location.lng,
+              latitude: place.location.lat,
+            };
+          }
         }
+        // If already has lat/lng, return as is
         return place;
-      }).filter((place: any) => place.latitude && place.longitude);
-      
+      }).filter((place: any) => {
+        const hasCoords = place.latitude && place.longitude;
+        if (!hasCoords) {
+          console.warn(`[PlacesService] Place ${place.id || place.name} missing coordinates`);
+        }
+        return hasCoords;
+      });
+
+      console.log(`[PlacesService] Transformed to ${places.length} places with coordinates`);
       return places;
     } catch (error) {
-      console.error('Error fetching places:', error);
+      console.error('[PlacesService] Direct query error:', error);
       return [];
     }
   }

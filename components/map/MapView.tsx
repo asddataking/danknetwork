@@ -25,35 +25,57 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
     const maptilerKey = process.env.NEXT_PUBLIC_MAPTILER_KEY || '';
     const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_PUBLIC_TOKEN || '';
 
-    const mapStyle = maptilerKey
-      ? `https://api.maptiler.com/maps/streets-v2/style.json?key=${maptilerKey}`
-      : mapboxToken
-      ? `https://api.mapbox.com/styles/v1/mapbox/streets-v12/style.json?access_token=${mapboxToken}`
-      : {
-          version: 8,
-          sources: {
-            'raster-tiles': {
-              type: 'raster',
-              tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-              tileSize: 256,
-            },
-          },
-          layers: [
-            {
-              id: 'simple-tiles',
-              type: 'raster',
-              source: 'raster-tiles',
-              minzoom: 0,
-              maxzoom: 22,
-            },
-          ],
-        };
+    // Default to OpenStreetMap style (works without API keys)
+    const defaultStyle = {
+      version: 8,
+      sources: {
+        'raster-tiles': {
+          type: 'raster',
+          tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+          tileSize: 256,
+          attribution: '© OpenStreetMap contributors',
+        },
+      },
+      layers: [
+        {
+          id: 'simple-tiles',
+          type: 'raster',
+          source: 'raster-tiles',
+          minzoom: 0,
+          maxzoom: 22,
+        },
+      ],
+    };
+
+    // Try MapTiler first, then Mapbox, then fallback to OSM
+    let mapStyle: any = defaultStyle;
+    
+    if (maptilerKey) {
+      mapStyle = `https://api.maptiler.com/maps/streets-v2/style.json?key=${maptilerKey}`;
+    } else if (mapboxToken) {
+      // Only use Mapbox if token is provided and looks valid (starts with pk.)
+      if (mapboxToken.startsWith('pk.')) {
+        mapStyle = `https://api.mapbox.com/styles/v1/mapbox/streets-v12/style.json?access_token=${mapboxToken}`;
+      } else {
+        console.warn('[MapView] Invalid Mapbox token format, falling back to OpenStreetMap');
+      }
+    }
 
     map.current = new maplibregl.Map({
       container: mapContainer.current,
-      style: mapStyle as any,
+      style: mapStyle,
       center: [-84.5467, 44.3148],
       zoom: 6,
+    });
+
+    // Handle map style loading errors
+    map.current.on('error', (e: any) => {
+      console.error('[MapView] Map style error:', e);
+      // If style fails to load, try to switch to OSM
+      if (mapStyle !== defaultStyle && map.current) {
+        console.warn('[MapView] Falling back to OpenStreetMap tiles');
+        map.current.setStyle(defaultStyle);
+      }
     });
 
     map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
@@ -68,6 +90,24 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
     map.current.on('load', () => {
       setLoading(false);
       updateMarkers();
+    });
+
+    // Handle style loading errors (e.g., invalid Mapbox token)
+    map.current.on('style.loading', () => {
+      // Style is loading
+    });
+
+    map.current.on('style.error', (e: any) => {
+      console.error('[MapView] Style loading error:', e);
+      // Fallback to OpenStreetMap if style fails to load
+      if (map.current && mapStyle !== defaultStyle) {
+        console.warn('[MapView] Mapbox/MapTiler style failed, falling back to OpenStreetMap');
+        try {
+          map.current.setStyle(defaultStyle);
+        } catch (fallbackError) {
+          console.error('[MapView] Failed to set fallback style:', fallbackError);
+        }
+      }
     });
 
     map.current.on('moveend', () => {

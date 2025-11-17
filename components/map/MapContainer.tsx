@@ -36,11 +36,16 @@ export default function MapContainer() {
         const response = await fetch(`/api/places?${params.toString()}`);
         if (response.ok) {
           const data = await response.json();
-          setPlaces(data.places || []);
-          setFilteredPlaces(data.places || []);
+          const fetchedPlaces = data.places || [];
+          console.log(`[MapContainer] Fetched ${fetchedPlaces.length} places`);
+          setPlaces(fetchedPlaces);
+          setFilteredPlaces(fetchedPlaces);
+        } else {
+          const errorData = await response.json().catch(() => ({}));
+          console.error('[MapContainer] API error:', response.status, errorData);
         }
       } catch (error) {
-        console.error('Error fetching places:', error);
+        console.error('[MapContainer] Error fetching places:', error);
       } finally {
         setLoading(false);
       }
@@ -65,7 +70,7 @@ export default function MapContainer() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-200px)] bg-black">
+    <div className="flex flex-col h-full bg-black">
       {/* View Toggle */}
       <div className="bg-dark-surface border-b border-neon-green/20 px-4 py-3">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
