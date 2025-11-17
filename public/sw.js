@@ -18,7 +18,31 @@ self.addEventListener('install', (event) => {
 });
 
 // Fetch event - serve from cache, fallback to network
+// BUT exclude map tiles, API routes, and external resources
 self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+  
+  // Skip service worker for:
+  // 1. Mapbox tile services
+  // 2. API routes
+  // 3. External resources (not same origin)
+  // 4. MapLibre GL resources
+  const isMapTile = url.hostname.includes('mapbox.com');
+  
+  const isApiRoute = url.pathname.startsWith('/api/');
+  
+  const isExternal = url.origin !== self.location.origin;
+  
+  const isMapLibreResource = 
+    url.pathname.includes('maplibre') ||
+    url.pathname.includes('mapbox-gl');
+  
+  if (isMapTile || isApiRoute || (isExternal && !url.pathname.startsWith('/')) || isMapLibreResource) {
+    // Don't intercept - let these requests go directly to network
+    return;
+  }
+  
+  // For same-origin requests, try cache first, then network
   event.respondWith(
     caches.match(event.request).then((response) => {
       // Return cached version or fetch from network

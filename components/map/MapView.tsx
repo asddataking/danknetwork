@@ -22,44 +22,22 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
   useEffect(() => {
     if (!mapContainer.current) return;
 
-    const maptilerKey = process.env.NEXT_PUBLIC_MAPTILER_KEY || '';
     const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_PUBLIC_TOKEN || '';
 
-    // Default to OpenStreetMap style (works without API keys)
-    const defaultStyle: maplibregl.StyleSpecification = {
-      version: 8 as const,
-      sources: {
-        'raster-tiles': {
-          type: 'raster',
-          tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-          tileSize: 256,
-          attribution: '© OpenStreetMap contributors',
-        },
-      },
-      layers: [
-        {
-          id: 'simple-tiles',
-          type: 'raster',
-          source: 'raster-tiles',
-          minzoom: 0,
-          maxzoom: 22,
-        },
-      ],
-    };
-
-    // Try MapTiler first, then Mapbox, then fallback to OSM
-    let mapStyle: any = defaultStyle;
-    
-    if (maptilerKey) {
-      mapStyle = `https://api.maptiler.com/maps/streets-v2/style.json?key=${maptilerKey}`;
-    } else if (mapboxToken) {
-      // Only use Mapbox if token is provided and looks valid (starts with pk.)
-      if (mapboxToken.startsWith('pk.')) {
-        mapStyle = `https://api.mapbox.com/styles/v1/mapbox/streets-v12/style.json?access_token=${mapboxToken}`;
-      } else {
-        console.warn('[MapView] Invalid Mapbox token format, falling back to OpenStreetMap');
-      }
+    // Only use Mapbox - require valid token
+    if (!mapboxToken) {
+      console.error('[MapView] NEXT_PUBLIC_MAPBOX_PUBLIC_TOKEN is not set');
+      setLoading(false);
+      return;
     }
+
+    if (!mapboxToken.startsWith('pk.')) {
+      console.error('[MapView] Invalid Mapbox token format. Token must start with "pk."');
+      setLoading(false);
+      return;
+    }
+
+    const mapStyle = `https://api.mapbox.com/styles/v1/mapbox/streets-v12/style.json?access_token=${mapboxToken}`;
 
     map.current = new maplibregl.Map({
       container: mapContainer.current,
@@ -68,14 +46,38 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
       zoom: 6,
     });
 
-    // Handle map style loading errors
-    map.current.on('error', (e: any) => {
-      console.error('[MapView] Map style error:', e);
-      // If style fails to load, try to switch to OSM
-      if (mapStyle !== defaultStyle && map.current) {
-        console.warn('[MapView] Falling back to OpenStreetMap tiles');
-        map.current.setStyle(defaultStyle);
+    let mapFullyLoaded = false;
+
+    const handleMapReady = () => {
+      if (!mapFullyLoaded && map.current && map.current.loaded()) {
+        mapFullyLoaded = true;
+        setLoading(false);
+        console.log('[MapView] Mapbox map fully loaded and ready');
+        // Trigger marker initialization if places are available
+        if (places.length > 0 && clusterRef.current) {
+          setTimeout(() => {
+            updateMarkers();
+          }, 100);
+        }
       }
+    };
+
+    // Handle initial map load
+    map.current.on('load', () => {
+      console.log('[MapView] Mapbox load event fired');
+      handleMapReady();
+    });
+
+    // Handle style load
+    map.current.on('style.load', () => {
+      console.log('[MapView] Mapbox style loaded');
+      handleMapReady();
+    });
+
+    // Handle map errors
+    map.current.on('error', (e: any) => {
+      console.error('[MapView] Mapbox error:', e);
+      setLoading(false);
     });
 
     map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
@@ -87,35 +89,28 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
       'top-right'
     );
 
-    map.current.on('load', () => {
-      setLoading(false);
-      updateMarkers();
-    });
-
-    // Handle style loading errors (e.g., invalid Mapbox token)
+    // Handle style loading
     map.current.on('style.loading', () => {
-      // Style is loading
+      console.log('[MapView] Mapbox style loading...');
+      mapFullyLoaded = false;
     });
 
     map.current.on('style.error', (e: any) => {
-      console.error('[MapView] Style loading error:', e);
-      // Fallback to OpenStreetMap if style fails to load
-      if (map.current && mapStyle !== defaultStyle) {
-        console.warn('[MapView] Mapbox/MapTiler style failed, falling back to OpenStreetMap');
-        try {
-          map.current.setStyle(defaultStyle);
-        } catch (fallbackError) {
-          console.error('[MapView] Failed to set fallback style:', fallbackError);
-        }
-      }
+      console.error('[MapView] Mapbox style loading error:', e);
+      console.error('[MapView] Please check your NEXT_PUBLIC_MAPBOX_PUBLIC_TOKEN in Vercel environment variables');
+      setLoading(false);
     });
 
     map.current.on('moveend', () => {
-      updateMarkers();
+      if (map.current && map.current.loaded() && clusterRef.current) {
+        updateMarkers();
+      }
     });
 
     map.current.on('zoomend', () => {
-      updateMarkers();
+      if (map.current && map.current.loaded() && clusterRef.current) {
+        updateMarkers();
+      }
     });
 
     return () => {
@@ -129,7 +124,28 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
 
   // Initialize clustering and markers
   useEffect(() => {
-    if (places.length > 0 && map.current && map.current.loaded()) {
+    const initializeMarkers = () => {
+      if (!map.current) {
+        console.log('[MapView] Map instance not available');
+        return;
+      }
+
+      if (!map.current.loaded()) {
+        console.log('[MapView] Map not loaded yet, will retry...');
+        // Retry after a short delay
+        setTimeout(() => {
+          if (map.current && map.current.loaded()) {
+            initializeMarkers();
+          }
+        }, 200);
+        return;
+      }
+
+      if (places.length === 0) {
+        console.log('[MapView] No places to display');
+        return;
+      }
+
       console.log(`[MapView] Initializing markers for ${places.length} places`);
       
       const points = places
@@ -151,6 +167,11 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
 
       console.log(`[MapView] Created ${points.length} points for clustering`);
 
+      if (points.length === 0) {
+        console.warn('[MapView] No valid points to cluster');
+        return;
+      }
+
       clusterRef.current = new Supercluster({
         radius: 50,
         maxZoom: 16,
@@ -158,8 +179,16 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
       });
 
       clusterRef.current.load(points);
+      console.log('[MapView] Cluster loaded, updating markers');
       updateMarkers();
-    }
+    };
+
+    // Wait a bit for map to be ready, then initialize
+    const timer = setTimeout(() => {
+      initializeMarkers();
+    }, 300);
+
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [places]);
 
