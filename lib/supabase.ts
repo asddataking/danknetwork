@@ -401,7 +401,22 @@ export class PlacesService {
         .single();
 
       if (error) throw error;
-      return data;
+
+      if (!data) return null;
+
+      // Extract coordinates from geography field
+      const place: any = { ...data };
+      if (place.location && typeof place.location === 'object') {
+        if (place.location.coordinates && Array.isArray(place.location.coordinates) && place.location.coordinates.length >= 2) {
+          place.longitude = place.location.coordinates[0];
+          place.latitude = place.location.coordinates[1];
+        } else if (place.location.lng !== undefined && place.location.lat !== undefined) {
+          place.longitude = place.location.lng;
+          place.latitude = place.location.lat;
+        }
+      }
+
+      return place;
     } catch (error) {
       console.error('Error fetching place:', error);
       return null;

@@ -239,7 +239,13 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
         const isDispensary = place.tags?.includes('Dispensary') || place.cuisines?.includes('Cannabis');
         const placeType = isDispensary ? 'Dispensary' : 'Restaurant';
 
-        const popup = new maplibregl.Popup({ offset: 25, className: 'map-popup' }).setHTML(`
+        // Create popup for click
+        const clickPopup = new maplibregl.Popup({ 
+          offset: 25, 
+          className: 'map-popup',
+          closeButton: true,
+          closeOnClick: false,
+        }).setHTML(`
           <div class="text-black p-3 min-w-[200px]">
             <div class="flex items-start justify-between mb-2">
               <div class="flex-1">
@@ -254,11 +260,12 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
             ${place.cuisines && place.cuisines.length > 0 ? `<p class="text-xs text-gray-500 mt-2">${place.cuisines.filter((c: string) => c !== 'Cannabis').join(', ') || place.cuisines.join(', ')}</p>` : ''}
             ${place.tags && place.tags.length > 0 ? `<p class="text-xs text-gray-400 mt-1">${place.tags.filter((t: string) => !t.includes('Featured') && t !== 'Dispensary' && t !== 'Michigan Munchie Map').slice(0, 3).join(' • ')}</p>` : ''}
             <div class="mt-3 flex gap-2">
+              ${place.slug ? `<a href="/place/${place.slug}" class="text-xs bg-neon-green text-black px-3 py-1 rounded font-bold hover:bg-neon-green-dark transition-colors">View Details</a>` : ''}
               <a 
                 href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${place.name} ${place.address || ''} ${place.city || ''}`)}"
                 target="_blank"
                 rel="noopener noreferrer"
-                class="text-xs bg-neon-green text-black px-3 py-1 rounded font-bold hover:bg-neon-green-dark transition-colors"
+                class="text-xs border border-gray-300 px-3 py-1 rounded hover:bg-gray-100 transition-colors"
               >
                 Directions
               </a>
@@ -267,13 +274,49 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
           </div>
         `);
 
+        // Create hover popup (simpler, just name and type)
+        const hoverPopup = new maplibregl.Popup({ 
+          offset: 25, 
+          className: 'map-popup',
+          closeButton: false,
+          closeOnClick: false,
+        }).setHTML(`
+          <div class="text-black p-2 min-w-[150px]">
+            <h3 class="font-bold text-base">${place.name}</h3>
+            <span class="text-xs text-gray-500 uppercase">${placeType}</span>
+          </div>
+        `);
+
         const marker = new maplibregl.Marker(el)
           .setLngLat([place.longitude, place.latitude])
-          .setPopup(popup)
+          .setPopup(clickPopup)
           .addTo(currentMap);
+
+        // Show hover popup on mouseenter, hide on mouseout
+        let hoverPopupOpen = false;
+        el.addEventListener('mouseenter', () => {
+          if (!hoverPopupOpen) {
+            hoverPopup.setLngLat([place.longitude, place.latitude]).addTo(currentMap);
+            hoverPopupOpen = true;
+          }
+        });
+
+        el.addEventListener('mouseleave', () => {
+          if (hoverPopupOpen) {
+            hoverPopup.remove();
+            hoverPopupOpen = false;
+          }
+        });
 
         el.addEventListener('click', () => {
           onPlaceSelect(place);
+          // Close hover popup if open
+          if (hoverPopupOpen) {
+            hoverPopup.remove();
+            hoverPopupOpen = false;
+          }
+          // Open click popup
+          marker.togglePopup();
         });
 
         markersRef.current.push(marker);
