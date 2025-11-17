@@ -26,139 +26,52 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
     const maptilerKey = process.env.NEXT_PUBLIC_MAPTILER_KEY || '';
     const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_PUBLIC_TOKEN || '';
 
-    // Initialize map with MapTiler or Mapbox
-    if (maptilerKey) {
-      mapStyleRef.current = `https://api.maptiler.com/maps/streets-v2/style.json?key=${maptilerKey}`;
-      console.log('[MapView] Using MapTiler');
-    } else if (mapboxToken) {
-      if (!mapboxToken.startsWith('pk.')) {
-        console.error('[MapView] Invalid Mapbox token format. Token must start with "pk."');
-        console.error('[MapView] Current token starts with:', mapboxToken.substring(0, 3));
-        setLoading(false);
-        return;
-      }
-      
-      // Try streets-v12 style first (standard Mapbox style)
-      // According to Mapbox docs: https://docs.mapbox.com/api/maps/styles/
-      // Standard styles: streets-v12, outdoors-v12, light-v11, dark-v11, satellite-v9, satellite-streets-v12, navigation-day-v1, navigation-night-v1
-      mapStyleRef.current = `https://api.mapbox.com/styles/v1/mapbox/streets-v12/style.json?access_token=${mapboxToken}`;
-      console.log('[MapView] Using Mapbox with streets-v12 style');
-      console.log('[MapView] Mapbox token (first 10 chars):', mapboxToken.substring(0, 10) + '...');
-      console.log('[MapView] Style URL format:', mapStyleRef.current.replace(mapboxToken, 'TOKEN_HIDDEN'));
-    } else {
+    // Initialize map with MapTiler or Mapbox (matching reference implementation exactly)
+    const mapStyle = maptilerKey
+      ? `https://api.maptiler.com/maps/streets-v2/style.json?key=${maptilerKey}`
+      : mapboxToken
+      ? `https://api.mapbox.com/styles/v1/mapbox/streets-v12/style.json?access_token=${mapboxToken}`
+      : null;
+
+    if (!mapStyle) {
       console.error('[MapView] No map provider configured. Please set NEXT_PUBLIC_MAPTILER_KEY or NEXT_PUBLIC_MAPBOX_PUBLIC_TOKEN');
       setLoading(false);
       return;
     }
 
+    mapStyleRef.current = mapStyle;
+    
+    // Debug: Log the style URL (without exposing full token)
+    if (mapboxToken) {
+      const urlParts = mapStyle.split('?');
+      console.log('[MapView] Mapbox style URL:', urlParts[0] + '?access_token=***');
+      console.log('[MapView] Token length:', mapboxToken.length, 'starts with:', mapboxToken.substring(0, 3));
+    }
+
     map.current = new maplibregl.Map({
       container: mapContainer.current,
-      style: mapStyleRef.current as any,
+      style: mapStyle as any,
       center: [-84.5467, 44.3148],
       zoom: 6,
     });
 
-    let mapFullyLoaded = false;
-
-    const handleMapReady = () => {
-      if (!mapFullyLoaded && map.current && map.current.loaded()) {
-        mapFullyLoaded = true;
-        setLoading(false);
-        console.log('[MapView] Mapbox map fully loaded and ready');
-        // Trigger marker initialization if places are available
-        if (places.length > 0 && clusterRef.current) {
-          setTimeout(() => {
-            updateMarkers();
-          }, 100);
-        }
-      }
-    };
-
-    // Handle initial map load
-    map.current.on('load', () => {
-      console.log('[MapView] Mapbox load event fired');
-      handleMapReady();
-    });
-
-    // Handle style load
-    map.current.on('style.load', () => {
-      console.log('[MapView] Mapbox style loaded');
-      handleMapReady();
-    });
-
-    // Handle map errors
-    map.current.on('error', (e: any) => {
-      console.error('[MapView] Mapbox error:', e);
-      console.error('[MapView] Error type:', e.error?.type, 'Message:', e.error?.message);
-      
-      // Check if it's a style loading error (404)
-      if (e.error?.status === 404 || e.error?.message?.includes('404')) {
-        console.error('[MapView] 404 error - Style not found. This usually means:');
-        console.error('1. The style name is incorrect');
-        console.error('2. The token does not have access to this style');
-        console.error('3. The token is invalid or expired');
-      }
-      
-      setLoading(false);
-    });
-
+    // Add navigation controls (matching reference exactly)
     map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
+
+    // Add geolocate control (matching reference exactly)
     map.current.addControl(
       new maplibregl.GeolocateControl({
-        positionOptions: { enableHighAccuracy: true },
+        positionOptions: {
+          enableHighAccuracy: true,
+        },
         trackUserLocation: true,
       }),
       'top-right'
     );
 
-    // Handle style loading
-    map.current.on('style.loading', () => {
-      console.log('[MapView] Mapbox style loading...');
-      mapFullyLoaded = false;
-    });
-
-    map.current.on('style.error', (e: any) => {
-      console.error('[MapView] Style loading error:', e);
-      console.error('[MapView] Error details:', {
-        error: e.error,
-        message: e.message,
-        type: e.type,
-        status: e.status,
-      });
-      
-      // Try alternative Mapbox styles if streets-v12 fails
-      if (mapboxToken && mapboxToken.startsWith('pk.') && map.current) {
-        const currentStyle = mapStyleRef.current;
-        const currentStyleName = currentStyle.match(/mapbox\/([^/]+)\//)?.[1];
-        
-        if (currentStyleName === 'streets-v12') {
-          console.warn('[MapView] streets-v12 returned 404, trying streets-v11...');
-          const altStyle = `https://api.mapbox.com/styles/v1/mapbox/streets-v11/style.json?access_token=${mapboxToken}`;
-          mapStyleRef.current = altStyle;
-          map.current.setStyle(altStyle);
-          return; // Don't set loading to false yet, let it try v11
-        } else if (currentStyleName === 'streets-v11') {
-          console.warn('[MapView] streets-v11 also failed, trying basic-v9...');
-          const altStyle = `https://api.mapbox.com/styles/v1/mapbox/basic-v9/style.json?access_token=${mapboxToken}`;
-          mapStyleRef.current = altStyle;
-          map.current.setStyle(altStyle);
-          return;
-        } else {
-          console.error('[MapView] All Mapbox styles failed. Possible issues:');
-          console.error('1. Token is invalid or expired');
-          console.error('2. Token does not have STYLES:READ scope');
-          console.error('3. Token has URL restrictions that block this domain');
-          console.error('4. Style name is incorrect or not available for your account');
-          console.error('[MapView] Please check your Mapbox token in Vercel environment variables');
-          console.error('[MapView] Token should have scopes: STYLES:READ, DATASETS:READ, FONTS:READ, SPRITE:READ');
-          console.error('[MapView] Current style URL:', currentStyle);
-          console.error('[MapView] Full token (for debugging):', mapboxToken);
-          setLoading(false);
-        }
-      } else {
-        console.error('[MapView] Please check your map token configuration in Vercel environment variables');
-        setLoading(false);
-      }
+    // Handle map load (matching reference exactly - simple, no complex error handling)
+    map.current.on('load', () => {
+      setLoading(false);
     });
 
     map.current.on('moveend', () => {
@@ -180,6 +93,7 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
       markersRef.current.forEach((m) => m.remove());
       clusterMarkersRef.current.forEach((m) => m.remove());
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Initialize clustering and markers
