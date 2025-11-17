@@ -113,6 +113,7 @@ export default function FeaturedEpisodeHero({ episode }: FeaturedEpisodeHeroProp
           </svg>
         </div>
       </div>
+      </div>
 
       {isModalOpen && (
         <VideoModal video={episode} onClose={() => setIsModalOpen(false)} />
