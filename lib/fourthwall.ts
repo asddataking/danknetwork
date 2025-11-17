@@ -84,7 +84,7 @@ class FourthwallClient {
       const now = new Date().toISOString();
       let query = client
         .from('products_cache')
-        .select('raw_data, expires_at, category, in_stock')
+        .select('product_id, name, description, price, image_url, checkout_url, raw_data, expires_at, category, in_stock')
         .gt('expires_at', now);
 
       // Filter by category if specified
@@ -101,30 +101,40 @@ class FourthwallClient {
       // Transform cached products
       const products: FourthwallProduct[] = data
         .map((item: any) => {
-          const product = item.raw_data;
-          if (!product) return null;
+          // Try to use raw_data first, fallback to individual fields
+          let product = null;
+          if (item.raw_data && typeof item.raw_data === 'object') {
+            product = item.raw_data;
+          }
 
+          // Build product from raw_data or individual fields
           const transformed: FourthwallProduct = {
-            id: product.id || item.product_id,
-            title: product.title || product.name || '',
-            handle: product.handle || '',
-            price: parseFloat(product.price || item.price || 0),
-            images: product.images || (item.image_url ? [item.image_url] : []),
-            available: item.in_stock !== false && product.available !== false,
-            variants: product.variants || [],
-            checkoutUrl: product.checkoutUrl || item.checkout_url || '',
-            collection: product.collection || item.category,
-            description: product.description || '',
-            tags: product.tags || [],
+            id: product?.id || item.product_id || '',
+            title: product?.title || product?.name || item.name || 'Untitled Product',
+            handle: product?.handle || '',
+            price: product?.price 
+              ? (typeof product.price === 'string' ? parseFloat(product.price) : product.price)
+              : parseFloat(item.price || 0),
+            images: product?.images 
+              ? (Array.isArray(product.images) ? product.images : [product.images])
+              : (item.image_url ? [item.image_url] : []),
+            available: item.in_stock !== false && (product?.available !== false),
+            variants: product?.variants || [],
+            checkoutUrl: product?.checkoutUrl || item.checkout_url || '',
+            collection: product?.collection || item.category || 'General',
+            description: product?.description || item.description || '',
+            tags: product?.tags || [],
           };
 
-          if (product.compareAtPrice !== undefined) {
-            transformed.compareAtPrice = product.compareAtPrice;
+          if (product?.compareAtPrice !== undefined) {
+            transformed.compareAtPrice = typeof product.compareAtPrice === 'string'
+              ? parseFloat(product.compareAtPrice)
+              : product.compareAtPrice;
           }
 
           return transformed;
         })
-        .filter((p): p is FourthwallProduct => p !== null);
+        .filter((p): p is FourthwallProduct => p !== null && !!p.id && !!p.title);
 
       // Apply filters
       let filtered = products;

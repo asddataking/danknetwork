@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fourthwallClient } from '@/lib/fourthwall';
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -10,15 +14,19 @@ export async function GET(request: NextRequest) {
       : undefined;
     const featured = searchParams.get('featured') === 'true';
 
+    console.log('[Products API] Fetching products with options:', { category, limit, featured });
+
     const products = await fourthwallClient.getProducts({
       category,
       limit,
       featured,
     });
 
+    console.log(`[Products API] Returning ${products.length} products`);
+
     return NextResponse.json({ products }, { status: 200 });
   } catch (error) {
-    console.error('Products API error:', error);
+    console.error('[Products API] Error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch products', products: [] },
       { status: 500 }
