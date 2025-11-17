@@ -3,7 +3,6 @@
 import VideoFeed from '@/components/VideoFeed';
 import DankNDevourHero from '@/components/DankNDevourHero';
 import FeatureHighlights from '@/components/FeatureHighlights';
-import MunchieMapSection from '@/components/MunchieMapSection';
 import FeaturedDispensary from '@/components/FeaturedDispensary';
 import FreshDrops from '@/components/FreshDrops';
 
@@ -16,9 +15,6 @@ export default function DankNDevourPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Feature Highlights */}
         <FeatureHighlights />
-
-        {/* Interactive Munchie Map Section */}
-        <MunchieMapSection />
 
         {/* Featured Dispensary */}
         <FeaturedDispensary />

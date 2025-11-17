@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { videos } from '@/data/videos';
+import { useState, useMemo, useEffect } from 'react';
+import { Video, videos as staticVideos } from '@/data/videos';
 import FeaturedEpisodeHero from '@/components/FeaturedEpisodeHero';
 // import ChannelCarousel from '@/components/ChannelCarousel'; // Hidden for now (only 1 active channel)
 import ShopShowcase from '@/components/ShopShowcase';
@@ -13,6 +13,32 @@ import VideoFeed from '@/components/VideoFeed';
 
 export default function HomePage() {
   const [selectedFilter, setSelectedFilter] = useState('all');
+  const [videos, setVideos] = useState<Video[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch videos from YouTube API
+  useEffect(() => {
+    const fetchVideos = async () => {
+      try {
+        const response = await fetch('/api/youtube/videos?brand=danknddevour&maxResults=50');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.videos && data.videos.length > 0) {
+            setVideos(data.videos);
+            setLoading(false);
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching YouTube videos:', error);
+      }
+      // Fallback to static data
+      setVideos(staticVideos);
+      setLoading(false);
+    };
+
+    fetchVideos();
+  }, []);
 
   const filter = useMemo(() => {
     if (selectedFilter === 'all') {
@@ -29,14 +55,18 @@ export default function HomePage() {
   }, [selectedFilter]);
 
   // Get featured episode (most recent)
-  const featuredEpisode = videos.sort((a, b) => 
-    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  )[0];
+  const featuredEpisode = videos.length > 0
+    ? videos.sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )[0]
+    : staticVideos.sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )[0];
 
   // Get trending videos (most liked)
-  const trendingVideos = [...videos]
-    .sort((a, b) => b.likes - a.likes)
-    .slice(0, 4);
+  const trendingVideos = videos.length > 0
+    ? [...videos].sort((a, b) => b.likes - a.likes).slice(0, 4)
+    : [...staticVideos].sort((a, b) => b.likes - a.likes).slice(0, 4);
 
   return (
     <div className="min-h-screen bg-black">

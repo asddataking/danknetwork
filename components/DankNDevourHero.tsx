@@ -33,7 +33,7 @@ export default function DankNDevourHero() {
 
         <div className="flex flex-col sm:flex-row gap-4">
           <Link
-            href="#map"
+            href="/munchie-map"
             className="bg-neon-green text-black px-8 py-4 font-bold rounded-lg hover:bg-neon-green-dark transition-colors duration-200 text-center uppercase"
           >
             Explore Map

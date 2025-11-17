@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* MapLibre GL Styles */
+@import 'maplibre-gl/dist/maplibre-gl.css';
+
 :root {
   --background: #000000;
   --foreground: #ffffff;
@@ -57,5 +60,25 @@ body {
 
 .animate-fade-in {
   animation: fadeIn 0.3s ease-out;
+}
+
+/* MapLibre Popup Styles */
+.mapboxgl-popup-content,
+.maplibregl-popup-content {
+  background: white !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+}
+
+.mapboxgl-popup-close-button,
+.maplibregl-popup-close-button {
+  color: #000 !important;
+  font-size: 20px !important;
+  padding: 4px 8px !important;
+}
+
+.mapboxgl-popup-close-button:hover,
+.maplibregl-popup-close-button:hover {
+  background-color: rgba(0, 0, 0, 0.05) !important;
 }
 
