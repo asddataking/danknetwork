@@ -1,14 +1,23 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Place, PlacesQueryParams } from '@/types/place';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Supabase credentials not found. Map features may be limited.');
-}
+// Create Supabase client only if credentials are available
+let supabase: SupabaseClient | null = null;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+function getSupabaseClient(): SupabaseClient | null {
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return null;
+  }
+  
+  if (!supabase) {
+    supabase = createClient(supabaseUrl, supabaseAnonKey);
+  }
+  
+  return supabase;
+}
 
 export class PlacesService {
   /**
@@ -21,7 +30,12 @@ export class PlacesService {
     maxLat: number
   ): Promise<Place[]> {
     try {
-      const { data, error } = await supabase.rpc('get_places_in_bounds', {
+      const client = getSupabaseClient();
+      if (!client) {
+        return [];
+      }
+
+      const { data, error } = await client.rpc('get_places_in_bounds', {
         min_lng: minLng,
         min_lat: minLat,
         max_lng: maxLng,
@@ -42,7 +56,12 @@ export class PlacesService {
    */
   static async getPlacesSimple(): Promise<Place[]> {
     try {
-      const { data, error } = await supabase
+      const client = getSupabaseClient();
+      if (!client) {
+        return [];
+      }
+
+      const { data, error } = await client
         .from('places')
         .select('*')
         .eq('status', 'published')
@@ -66,7 +85,12 @@ export class PlacesService {
     filters?: PlacesQueryParams
   ): Promise<Place[]> {
     try {
-      let query = supabase
+      const client = getSupabaseClient();
+      if (!client) {
+        return [];
+      }
+
+      let query = client
         .from('places')
         .select('*')
         .eq('status', 'published');
@@ -127,7 +151,12 @@ export class PlacesService {
    */
   static async getPlaceBySlug(slug: string): Promise<Place | null> {
     try {
-      const { data, error } = await supabase
+      const client = getSupabaseClient();
+      if (!client) {
+        return null;
+      }
+
+      const { data, error } = await client
         .from('places')
         .select('*')
         .eq('slug', slug)
