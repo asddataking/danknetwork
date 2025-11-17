@@ -82,6 +82,7 @@ class FourthwallClient {
 
       // Get all non-expired products from cache
       const now = new Date().toISOString();
+      console.log('[FourthwallClient] Checking cache for products, expires_at >', now);
       let query = client
         .from('products_cache')
         .select('product_id, name, description, price, image_url, checkout_url, raw_data, expires_at, category, in_stock')
@@ -94,55 +95,72 @@ class FourthwallClient {
 
       const { data, error } = await query;
 
-      if (error || !data || data.length === 0) {
+      if (error) {
+        console.error('[FourthwallClient] Cache query error:', error);
         return null;
       }
+
+      if (!data || data.length === 0) {
+        console.log('[FourthwallClient] No products found in cache (expired or empty)');
+        return null;
+      }
+
+      console.log(`[FourthwallClient] Found ${data.length} products in cache`);
+      console.log('[FourthwallClient] Sample cache item:', data[0]);
 
       // Transform cached products
       const products: FourthwallProduct[] = data
         .map((item: any) => {
-          // Try to use raw_data first, fallback to individual fields
-          let product = null;
-          if (item.raw_data && typeof item.raw_data === 'object') {
-            product = item.raw_data;
+          try {
+            // Try to use raw_data first, fallback to individual fields
+            let product = null;
+            if (item.raw_data && typeof item.raw_data === 'object') {
+              product = item.raw_data;
+            }
+
+            // Extract images - handle both 'image' (singular) and 'images' (plural)
+            let images: string[] = [];
+            if (product?.images) {
+              images = Array.isArray(product.images) ? product.images : [product.images];
+            } else if (product?.image) {
+              images = [product.image];
+            } else if (item.image_url) {
+              images = [item.image_url];
+            }
+
+            // Build product from raw_data or individual fields
+            const transformed: FourthwallProduct = {
+              id: product?.id || item.product_id || '',
+              title: product?.title || product?.name || item.name || 'Untitled Product',
+              handle: product?.handle || '',
+              price: product?.price 
+                ? (typeof product.price === 'string' ? parseFloat(product.price) : product.price)
+                : parseFloat(item.price || 0),
+              images: images,
+              available: item.in_stock !== false && (product?.available !== false && product?.inStock !== false),
+              variants: product?.variants || [],
+              checkoutUrl: product?.checkoutUrl || item.checkout_url || '',
+              collection: product?.collection || item.category || 'General',
+              description: product?.description || item.description || '',
+              tags: product?.tags || [],
+            };
+
+            if (product?.compareAtPrice !== undefined) {
+              transformed.compareAtPrice = typeof product.compareAtPrice === 'string'
+                ? parseFloat(product.compareAtPrice)
+                : product.compareAtPrice;
+            }
+
+            console.log(`[FourthwallClient] Transformed product: ${transformed.id} - ${transformed.title}`, transformed);
+            return transformed;
+          } catch (error) {
+            console.error('[FourthwallClient] Error transforming product:', item, error);
+            return null;
           }
-
-          // Extract images - handle both 'image' (singular) and 'images' (plural)
-          let images: string[] = [];
-          if (product?.images) {
-            images = Array.isArray(product.images) ? product.images : [product.images];
-          } else if (product?.image) {
-            images = [product.image];
-          } else if (item.image_url) {
-            images = [item.image_url];
-          }
-
-          // Build product from raw_data or individual fields
-          const transformed: FourthwallProduct = {
-            id: product?.id || item.product_id || '',
-            title: product?.title || product?.name || item.name || 'Untitled Product',
-            handle: product?.handle || '',
-            price: product?.price 
-              ? (typeof product.price === 'string' ? parseFloat(product.price) : product.price)
-              : parseFloat(item.price || 0),
-            images: images,
-            available: item.in_stock !== false && (product?.available !== false && product?.inStock !== false),
-            variants: product?.variants || [],
-            checkoutUrl: product?.checkoutUrl || item.checkout_url || '',
-            collection: product?.collection || item.category || 'General',
-            description: product?.description || item.description || '',
-            tags: product?.tags || [],
-          };
-
-          if (product?.compareAtPrice !== undefined) {
-            transformed.compareAtPrice = typeof product.compareAtPrice === 'string'
-              ? parseFloat(product.compareAtPrice)
-              : product.compareAtPrice;
-          }
-
-          return transformed;
         })
         .filter((p): p is FourthwallProduct => p !== null && !!p.id && !!p.title);
+      
+      console.log(`[FourthwallClient] Transformed ${products.length} products from ${data.length} cache items`);
 
       // Apply filters
       let filtered = products;
@@ -241,9 +259,15 @@ class FourthwallClient {
 
       // Check if we have required credentials
       if (!this.storefrontToken || !this.shopUrl) {
-        console.warn('Fourthwall credentials missing, falling back to JSON feed');
+        console.warn('[FourthwallClient] Fourthwall credentials missing:', {
+          hasToken: !!this.storefrontToken,
+          hasShopUrl: !!this.shopUrl,
+        });
+        console.warn('[FourthwallClient] Falling back to JSON feed');
         const products = await this.getProductsFromFeed(options);
-        await this.saveToCache(products, options);
+        if (products.length > 0) {
+          await this.saveToCache(products, options);
+        }
         return products;
       }
 
@@ -263,6 +287,7 @@ class FourthwallClient {
       }
 
       const url = params.toString() ? `${storefrontUrl}?${params.toString()}` : storefrontUrl;
+      console.log('[FourthwallClient] Fetching from Storefront API:', url);
       
       const response = await fetch(url, {
         headers: {
@@ -272,20 +297,32 @@ class FourthwallClient {
       });
 
       if (!response.ok) {
-        console.error(`Fourthwall Storefront API error: ${response.status} ${response.statusText}`);
+        const errorText = await response.text().catch(() => '');
+        console.error(`[FourthwallClient] Storefront API error: ${response.status} ${response.statusText}`, errorText);
         // Fallback to public JSON feed
         return await this.getProductsFromFeed(options);
       }
 
       const data = await response.json();
+      console.log('[FourthwallClient] Storefront API response:', { 
+        hasProducts: !!data.products, 
+        isArray: Array.isArray(data),
+        productCount: data.products?.length || (Array.isArray(data) ? data.length : 0)
+      });
       
       // Storefront API returns { products: [...] } or just an array
       const products = data.products || data;
       
       if (!Array.isArray(products)) {
-        console.error('Fourthwall API returned invalid format:', data);
+        console.error('[FourthwallClient] API returned invalid format:', { 
+          type: typeof products, 
+          keys: typeof products === 'object' ? Object.keys(products) : 'N/A',
+          data 
+        });
         return await this.getProductsFromFeed(options);
       }
+
+      console.log(`[FourthwallClient] Storefront API returned ${products.length} products`);
 
       const transformed = this.transformProducts(products);
       
@@ -329,14 +366,96 @@ class FourthwallClient {
     featured?: boolean;
   } = {}): Promise<FourthwallProduct[]> {
     try {
+      // Check if shopUrl is available
+      if (!this.shopUrl) {
+        console.warn('[FourthwallClient] shopUrl not configured, cannot fetch from JSON feed');
+        // Try to return cached data even if expired
+        const client = getSupabaseClient();
+        if (client) {
+          try {
+            const { data: staleData } = await client
+              .from('products_cache')
+              .select('product_id, name, description, price, image_url, checkout_url, raw_data, expires_at, category, in_stock')
+              .limit(100);
+            
+            if (staleData && staleData.length > 0) {
+              const staleProducts = staleData
+                .map((item: any) => {
+                  try {
+                    let product = null;
+                    if (item.raw_data && typeof item.raw_data === 'object') {
+                      product = item.raw_data;
+                    }
+                    let images: string[] = [];
+                    if (product?.images) {
+                      images = Array.isArray(product.images) ? product.images : [product.images];
+                    } else if (product?.image) {
+                      images = [product.image];
+                    } else if (item.image_url) {
+                      images = [item.image_url];
+                    }
+                    const transformed: FourthwallProduct = {
+                      id: product?.id || item.product_id || '',
+                      title: product?.title || product?.name || item.name || 'Untitled Product',
+                      handle: product?.handle || '',
+                      price: product?.price 
+                        ? (typeof product.price === 'string' ? parseFloat(product.price) : product.price)
+                        : parseFloat(item.price || 0),
+                      images: images,
+                      available: item.in_stock !== false && (product?.available !== false && product?.inStock !== false),
+                      variants: product?.variants || [],
+                      checkoutUrl: product?.checkoutUrl || item.checkout_url || '',
+                      collection: product?.collection || item.category || 'General',
+                      description: product?.description || item.description || '',
+                      tags: product?.tags || [],
+                    };
+                    if (product?.compareAtPrice !== undefined) {
+                      transformed.compareAtPrice = typeof product.compareAtPrice === 'string'
+                        ? parseFloat(product.compareAtPrice)
+                        : product.compareAtPrice;
+                    }
+                    return transformed;
+                  } catch (error) {
+                    return null;
+                  }
+                })
+                .filter((p): p is FourthwallProduct => p !== null && !!p.id && !!p.title);
+              
+              if (staleProducts.length > 0) {
+                console.log('[FourthwallClient] Returning stale cache (shopUrl not configured)');
+                // Apply filters
+                let filtered = staleProducts;
+                if (options.featured) {
+                  filtered = filtered.filter(p => 
+                    p.tags?.includes('featured') || 
+                    p.tags?.includes('Featured') ||
+                    p.collection === 'featured'
+                  );
+                }
+                if (options.limit) {
+                  filtered = filtered.slice(0, options.limit);
+                }
+                return filtered;
+              }
+            }
+          } catch (error) {
+            console.error('[FourthwallClient] Error fetching stale cache:', error);
+          }
+        }
+        return [];
+      }
+
       const feedUrl = `${this.shopUrl}/products.json`;
+      console.log('[FourthwallClient] Fetching from JSON feed:', feedUrl);
       const response = await fetch(feedUrl);
       
       if (!response.ok) {
-        throw new Error('Failed to fetch products feed');
+        console.error(`[FourthwallClient] Feed fetch failed: ${response.status} ${response.statusText}`);
+        throw new Error(`Failed to fetch products feed: ${response.status}`);
       }
 
       const data = await response.json();
+      console.log('[FourthwallClient] Feed response:', { productCount: data.products?.length || 0 });
       let products = this.transformProductsFromFeed(data.products || []);
 
       // Apply filters
@@ -359,6 +478,8 @@ class FourthwallClient {
         products = products.slice(0, options.limit);
       }
 
+      console.log(`[FourthwallClient] Feed returned ${products.length} products after filtering`);
+
       // Save to cache
       await this.saveToCache(products, options);
 
@@ -366,13 +487,75 @@ class FourthwallClient {
     } catch (error) {
       console.error('[FourthwallClient] Feed error:', error);
       
-      // Try to return cached data on error
-      const cachedProducts = await this.getCachedProducts(options);
-      if (cachedProducts && cachedProducts.length > 0) {
-        console.log('[FourthwallClient] Feed failed, returning stale cache');
-        return cachedProducts;
+      // Try to return cached data on error (even if expired)
+      // Query cache without expiration check by using a far future date
+      const client = getSupabaseClient();
+      if (client) {
+        try {
+          const { data: staleData } = await client
+            .from('products_cache')
+            .select('product_id, name, description, price, image_url, checkout_url, raw_data, expires_at, category, in_stock')
+            .limit(100); // Get up to 100 cached products regardless of expiration
+          
+          if (staleData && staleData.length > 0) {
+            // Transform stale cache data
+            const staleProducts = staleData
+              .map((item: any) => {
+                try {
+                  let product = null;
+                  if (item.raw_data && typeof item.raw_data === 'object') {
+                    product = item.raw_data;
+                  }
+                  let images: string[] = [];
+                  if (product?.images) {
+                    images = Array.isArray(product.images) ? product.images : [product.images];
+                  } else if (product?.image) {
+                    images = [product.image];
+                  } else if (item.image_url) {
+                    images = [item.image_url];
+                  }
+                  const transformed: FourthwallProduct = {
+                    id: product?.id || item.product_id || '',
+                    title: product?.title || product?.name || item.name || 'Untitled Product',
+                    handle: product?.handle || '',
+                    price: product?.price 
+                      ? (typeof product.price === 'string' ? parseFloat(product.price) : product.price)
+                      : parseFloat(item.price || 0),
+                    images: images,
+                    available: item.in_stock !== false && (product?.available !== false && product?.inStock !== false),
+                    variants: product?.variants || [],
+                    checkoutUrl: product?.checkoutUrl || item.checkout_url || '',
+                    collection: product?.collection || item.category || 'General',
+                    description: product?.description || item.description || '',
+                    tags: product?.tags || [],
+                  };
+                  if (product?.compareAtPrice !== undefined) {
+                    transformed.compareAtPrice = typeof product.compareAtPrice === 'string'
+                      ? parseFloat(product.compareAtPrice)
+                      : product.compareAtPrice;
+                  }
+                  return transformed;
+                } catch (error) {
+                  return null;
+                }
+              })
+              .filter((p): p is FourthwallProduct => p !== null && !!p.id && !!p.title);
+            
+            if (staleProducts.length > 0) {
+              console.log('[FourthwallClient] Feed failed, returning stale cache');
+              // Apply limit if specified
+              if (options.limit) {
+                return staleProducts.slice(0, options.limit);
+              }
+              return staleProducts;
+            }
+          }
+        } catch (staleError) {
+          console.error('[FourthwallClient] Error fetching stale cache:', staleError);
+        }
       }
       
+      console.warn('[FourthwallClient] No products available from feed or cache');
       return [];
     }
   }

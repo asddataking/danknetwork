@@ -4,7 +4,6 @@ import { useState, useMemo, useEffect } from 'react';
 import { Video, videos as staticVideos } from '@/data/videos';
 import FeaturedEpisodeHero from '@/components/FeaturedEpisodeHero';
 // import ChannelCarousel from '@/components/ChannelCarousel'; // Hidden for now (only 1 active channel)
-import FreshDrops from '@/components/FreshDrops';
 import ShopShowcase from '@/components/ShopShowcase';
 import DealsSection from '@/components/DealsSection';
 import TrendingSection from '@/components/TrendingSection';
@@ -81,11 +80,6 @@ export default function HomePage() {
         {/* <div className="mb-12">
           <ChannelCarousel />
         </div> */}
-
-        {/* Fresh Drops from the Shop */}
-        <div className="mb-12">
-          <FreshDrops />
-        </div>
 
         {/* Shop Showcase */}
         <div className="mb-12">

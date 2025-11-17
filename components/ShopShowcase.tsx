@@ -12,18 +12,17 @@ export default function ShopShowcase() {
   useEffect(() => {
     async function fetchProducts() {
       try {
-        // Try featured first, but if none, get regular products
-        let response = await fetch('/api/fourthwall/products?limit=4&featured=true');
-        let data = await response.json();
+        console.log('[ShopShowcase] Fetching products...');
+        const response = await fetch('/api/fourthwall/products?limit=4');
+        const data = await response.json();
         
-        // If no featured products, get regular products
-        if (!data.products || data.products.length === 0) {
-          console.log('[ShopShowcase] No featured products, fetching regular products');
-          response = await fetch('/api/fourthwall/products?limit=4');
-          data = await response.json();
+        console.log('[ShopShowcase] API response:', data);
+        console.log('[ShopShowcase] Fetched products:', data.products?.length || 0);
+        
+        if (data.error) {
+          console.error('[ShopShowcase] API error:', data.error);
         }
         
-        console.log('[ShopShowcase] Fetched products:', data.products?.length || 0);
         setProducts(data.products || []);
       } catch (error) {
         console.error('[ShopShowcase] Failed to fetch products:', error);
