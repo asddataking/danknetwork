@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  --background: #050709;
+  --background: #000000;
   --foreground: #ffffff;
 }
 
@@ -27,24 +27,20 @@ body {
     display: none;
   }
   
-  .gradient-turquoise {
-    background: linear-gradient(135deg, #0fb9c9 0%, #87ceeb 100%);
+  .gradient-neon-green {
+    background: linear-gradient(135deg, #00ff00 0%, #00cc00 100%);
   }
   
-  .gradient-purple {
-    background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
+  .glow-neon-green {
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
   }
   
-  .gradient-sky {
-    background: linear-gradient(135deg, #87ceeb 0%, #4682b4 100%);
+  .text-neon-green {
+    color: #00ff00;
   }
   
-  .glow-turquoise {
-    box-shadow: 0 0 20px rgba(15, 185, 201, 0.3);
-  }
-  
-  .glow-purple {
-    box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+  .border-neon-green {
+    border-color: #00ff00;
   }
 }
 

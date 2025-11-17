@@ -46,7 +46,7 @@ export default function VideoFeed({ initialVideos, filter }: VideoFeedProps) {
         <div className="mt-8 text-center">
           <button
             onClick={() => setDisplayCount((prev) => prev + 12)}
-            className="px-6 py-3 bg-accent-turquoise text-dark-bg font-semibold rounded-lg hover:bg-accent-turquoise/90 transition-colors"
+            className="px-6 py-3 bg-neon-green text-black font-semibold rounded-lg hover:bg-neon-green-dark transition-colors"
           >
             Load More
           </button>

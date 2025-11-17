@@ -24,70 +24,108 @@ export default function HomePage() {
   }, [selectedFilter]);
 
   return (
-    <div className="min-h-screen">
-      {/* Network Strip */}
-      <NetworkStrip />
+    <div className="min-h-screen bg-black">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+          {/* Hero Section */}
+          <div className="lg:col-span-2 relative bg-dark-surface rounded-lg overflow-hidden border border-neon-green/30 p-8 md:p-10">
+            {/* Subtle background pattern */}
+            <div className="absolute inset-0 opacity-5">
+              <div className="absolute inset-0" style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2300ff00' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+                backgroundSize: '60px 60px'
+              }}></div>
+            </div>
+            
+            <div className="relative z-10">
+              {/* LIVE Badge */}
+              <div className="inline-block mb-4">
+                <span className="bg-neon-green text-black px-3 py-1 text-xs font-bold uppercase">
+                  LIVE
+                </span>
+              </div>
+              
+              {/* Main Heading */}
+              <h1 className="text-neon-green font-black text-4xl md:text-5xl mb-4 uppercase">
+                LIVE ODDS ARE HOT
+              </h1>
+              
+              {/* Subheading */}
+              <p className="text-white text-xl mb-8">
+                Make Your Play Today.
+              </p>
+              
+              {/* CTA Buttons */}
+              <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                <Link
+                  href="/sports"
+                  className="bg-neon-green text-black px-6 py-3 font-bold rounded-lg hover:bg-neon-green-dark transition-colors duration-200 text-center"
+                >
+                  VIEW NOW
+                </Link>
+                <Link
+                  href="/sports"
+                  className="border-2 border-white text-white px-6 py-3 font-bold rounded-lg hover:bg-white/10 transition-colors duration-200 text-center"
+                >
+                  LEARN MORE
+                </Link>
+              </div>
+              
+              {/* Carousel Indicators */}
+              <div className="flex gap-2">
+                <div className="w-2 h-2 bg-neon-green rounded-full"></div>
+                <div className="w-2 h-2 bg-gray-700 rounded-full"></div>
+              </div>
+            </div>
+          </div>
 
-      {/* Filters */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <FilterChips selectedFilter={selectedFilter} onFilterChange={setSelectedFilter} />
-      </div>
-
-      {/* Video Feed */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
-        <VideoFeed filter={filter} />
-      </div>
-
-      {/* CTAs */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12 space-y-8">
-        {/* Dank'N'Devour CTA */}
-        <div className="relative bg-gradient-to-br from-dark-surface via-dark-bg to-dark-surface border-2 border-accent-turquoise/40 rounded-2xl p-8 md:p-10 overflow-hidden group hover:border-accent-turquoise hover:shadow-2xl hover:shadow-accent-turquoise/20 transition-all duration-300">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-accent-turquoise/5 rounded-full blur-3xl group-hover:bg-accent-turquoise/10 transition-colors"></div>
-          <div className="relative">
-            <h2 className="text-3xl md:text-4xl font-black text-white mb-3 bg-gradient-to-r from-white to-accent-turquoise bg-clip-text text-transparent">
-              Go deeper with Dank&apos;N&apos;Devour
-            </h2>
-            <p className="text-gray-300 text-lg mb-8 max-w-2xl">
-              Full restaurant episodes, behind-the-scenes, and Michigan food adventures.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Link
-                href="/danknddevour"
-                className="px-8 py-4 bg-gradient-turquoise text-dark-bg font-black rounded-xl hover:shadow-xl hover:shadow-accent-turquoise/30 transition-all duration-200 text-center hover:scale-105"
-              >
-                Watch on Dank Network
-              </Link>
-              <a
-                href="https://danknddevour.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-8 py-4 border-2 border-accent-turquoise text-accent-turquoise font-bold rounded-xl hover:bg-accent-turquoise/10 transition-all duration-200 text-center hover:scale-105"
-              >
-                Visit danknddevour.com
-              </a>
+          {/* Content Section */}
+          <div className="lg:col-span-1">
+            <h2 className="text-white font-bold text-2xl mb-4 uppercase">ENVETIER</h2>
+            <div className="text-white text-sm leading-relaxed space-y-4">
+              <p>
+                Characteristic aroma and flavor profile. Formal traditions - See great on the exterior areas. 
+                Exquisite interiors create a perfect balance. Born into the art of design, expert vision brings 
+                the beautiful extended design that the and is key we validated stunning. The statistics. 
+                Blend assignments into: exquisite through an exquisite or to escape.
+              </p>
+              <p>
+                By belonging, those are the obvious features. Great design also on the strong foundation: 
+                What makes the- extract the- beautiful extended design that the and is key we validated stunning.
+              </p>
             </div>
           </div>
         </div>
 
-        {/* DankPass CTA */}
-        <div className="relative bg-gradient-to-br from-dark-surface via-dark-bg to-dark-surface border-2 border-purple-500/40 rounded-2xl p-8 md:p-10 overflow-hidden group hover:border-purple-500 hover:shadow-2xl hover:shadow-purple-500/20 transition-all duration-300">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/5 rounded-full blur-3xl group-hover:bg-purple-500/10 transition-colors"></div>
-          <div className="relative">
-            <h2 className="text-3xl md:text-4xl font-black text-white mb-3 bg-gradient-to-r from-white to-purple-400 bg-clip-text text-transparent">
-              Turn receipts into rewards with DankPass
-            </h2>
-            <p className="text-gray-300 text-lg mb-8 max-w-2xl">
-              Upload your dispensary receipts, earn points, and unlock food & merch deals.
-            </p>
-            <a
-              href="https://www.dankpass.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block px-8 py-4 bg-gradient-purple text-white font-black rounded-xl hover:shadow-xl hover:shadow-purple-500/30 transition-all duration-200 hover:scale-105"
-            >
-              Open DankPass
-            </a>
+        {/* TOP PICKS Section */}
+        <div className="mb-12">
+          <div className="border-t-2 border-neon-green mb-6"></div>
+          <h2 className="text-neon-green font-bold text-2xl mb-6 uppercase">TOP PICKS</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((num) => (
+              <div key={num} className="relative bg-dark-surface rounded-lg overflow-hidden border border-gray-800 hover:border-neon-green/50 transition-all duration-200 min-h-[200px]">
+                <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/90 to-transparent">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-neon-green text-xs font-bold uppercase">TOP PICK</span>
+                  </div>
+                  <p className="text-white font-semibold">Card {num}</p>
+                </div>
+              </div>
+            ))}
           </div>
+        </div>
+
+        {/* Network Strip */}
+        <NetworkStrip />
+
+        {/* Filters */}
+        <div className="py-6">
+          <FilterChips selectedFilter={selectedFilter} onFilterChange={setSelectedFilter} />
+        </div>
+
+        {/* Video Feed */}
+        <div className="pb-12">
+          <VideoFeed filter={filter} />
         </div>
       </div>
     </div>

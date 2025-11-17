@@ -10,9 +10,9 @@ interface VideoCardProps {
 }
 
 const brandColors: Record<string, string> = {
-  danknddevour: 'bg-accent-turquoise',
-  recipes: 'bg-accent-sky',
-  sports: 'bg-purple-500',
+  danknddevour: 'bg-neon-green',
+  recipes: 'bg-neon-green',
+  sports: 'bg-neon-green',
 };
 
 const brandLabels: Record<string, string> = {
@@ -32,7 +32,7 @@ export default function VideoCard({ video, onOpen }: VideoCardProps) {
   };
 
   return (
-    <div className="bg-dark-surface rounded-xl overflow-hidden border border-gray-800/50 hover:border-accent-turquoise/60 transition-all duration-300 hover:shadow-xl hover:shadow-accent-turquoise/10 hover:-translate-y-1 group/card animate-fade-in">
+    <div className="bg-dark-surface rounded-xl overflow-hidden border border-gray-800/50 hover:border-neon-green/60 transition-all duration-300 hover:shadow-xl hover:shadow-neon-green/10 hover:-translate-y-1 group/card animate-fade-in">
       {/* Thumbnail */}
       <div
         className="relative aspect-video bg-gray-900 cursor-pointer group overflow-hidden"
@@ -48,7 +48,7 @@ export default function VideoCard({ video, onOpen }: VideoCardProps) {
         
         {/* Play Button */}
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-20 h-20 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center group-hover:scale-110 group-hover:bg-white/30 transition-all duration-300 glow-turquoise">
+          <div className="w-20 h-20 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center group-hover:scale-110 group-hover:bg-white/30 transition-all duration-300 glow-neon-green">
             <svg className="w-10 h-10 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
               <path d="M8 5v14l11-7z" />
             </svg>
@@ -72,7 +72,7 @@ export default function VideoCard({ video, onOpen }: VideoCardProps) {
 
       {/* Content */}
       <div className="p-5">
-        <h3 className="text-white font-bold text-base mb-3 line-clamp-2 group-hover/card:text-accent-turquoise transition-colors leading-tight">
+        <h3 className="text-white font-bold text-base mb-3 line-clamp-2 group-hover/card:text-neon-green transition-colors leading-tight">
           {video.title}
         </h3>
         
@@ -125,8 +125,8 @@ export default function VideoCard({ video, onOpen }: VideoCardProps) {
             }}
             className={`px-3 py-1.5 rounded-lg transition-all duration-200 ${
               isSaved(video.id)
-                ? 'text-accent-turquoise bg-accent-turquoise/10 hover:bg-accent-turquoise/20'
-                : 'text-gray-400 hover:text-accent-turquoise hover:bg-accent-turquoise/10'
+                ? 'text-neon-green bg-neon-green/10 hover:bg-neon-green/20'
+                : 'text-gray-400 hover:text-neon-green hover:bg-neon-green/10'
             }`}
           >
             <svg className="w-5 h-5" fill={isSaved(video.id) ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
@@ -139,7 +139,7 @@ export default function VideoCard({ video, onOpen }: VideoCardProps) {
               e.stopPropagation();
               handleShare();
             }}
-            className="text-gray-400 hover:text-accent-turquoise px-3 py-1.5 rounded-lg hover:bg-accent-turquoise/10 transition-all duration-200"
+            className="text-gray-400 hover:text-neon-green px-3 py-1.5 rounded-lg hover:bg-neon-green/10 transition-all duration-200"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
@@ -150,7 +150,7 @@ export default function VideoCard({ video, onOpen }: VideoCardProps) {
 
       {/* Toast */}
       {showToast && (
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-accent-turquoise text-dark-bg px-4 py-2 rounded-lg text-sm font-bold shadow-xl glow-turquoise z-50 animate-fade-in">
+        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-neon-green text-black px-4 py-2 rounded-lg text-sm font-bold shadow-xl glow-neon-green z-50 animate-fade-in">
           ✨ Link copied!
         </div>
       )}
