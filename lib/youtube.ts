@@ -1,5 +1,6 @@
 import { google } from 'googleapis';
 import { Video } from '@/data/videos';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 const youtubeApiKey = process.env.YOUTUBE_API_KEY || '';
 const youtubeChannelId = process.env.YOUTUBE_CHANNEL_ID || '';
@@ -12,6 +13,24 @@ const youtube = google.youtube({
   version: 'v3',
   auth: youtubeApiKey,
 });
+
+// Supabase client for caching
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+let supabaseClient: SupabaseClient | null = null;
+
+function getSupabaseClient(): SupabaseClient | null {
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return null;
+  }
+  
+  if (!supabaseClient) {
+    supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+  }
+  
+  return supabaseClient;
+}
 
 export interface YouTubeVideo {
   id: string;
@@ -29,13 +48,109 @@ export interface YouTubeVideo {
 
 export class YouTubeService {
   /**
+   * Get cache key for YouTube videos
+   */
+  private static getCacheKey(maxResults: number): string {
+    return `youtube_videos_${youtubeChannelId}_${maxResults}`;
+  }
+
+  /**
+   * Get cached videos from Supabase
+   */
+  private static async getCachedVideos(maxResults: number): Promise<YouTubeVideo[] | null> {
+    try {
+      const client = getSupabaseClient();
+      if (!client) {
+        return null;
+      }
+
+      const cacheKey = this.getCacheKey(maxResults);
+      const { data, error } = await client
+        .from('episodes_cache')
+        .select('episodes_data, expires_at')
+        .eq('cache_key', cacheKey)
+        .single();
+
+      if (error || !data) {
+        return null;
+      }
+
+      // Check if cache is still valid (not expired)
+      const expiresAt = new Date(data.expires_at);
+      const now = new Date();
+
+      if (now >= expiresAt) {
+        // Cache expired, delete it
+        await client
+          .from('episodes_cache')
+          .delete()
+          .eq('cache_key', cacheKey);
+        return null;
+      }
+
+      // Return cached data
+      return data.episodes_data as YouTubeVideo[];
+    } catch (error) {
+      console.error('[YouTubeService] Error getting cache:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Save videos to cache in Supabase
+   */
+  private static async saveToCache(videos: YouTubeVideo[], maxResults: number): Promise<void> {
+    try {
+      const client = getSupabaseClient();
+      if (!client) {
+        return;
+      }
+
+      const cacheKey = this.getCacheKey(maxResults);
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 24); // 24 hours from now
+
+      const { error } = await client
+        .from('episodes_cache')
+        .upsert({
+          cache_key: cacheKey,
+          episodes_data: videos,
+          episodes_count: videos.length,
+          expires_at: expiresAt.toISOString(),
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: 'cache_key',
+        });
+
+      if (error) {
+        console.error('[YouTubeService] Error saving to cache:', error);
+      } else {
+        console.log(`[YouTubeService] Cached ${videos.length} videos for 24 hours`);
+      }
+    } catch (error) {
+      console.error('[YouTubeService] Error saving to cache:', error);
+    }
+  }
+
+  /**
    * Fetch videos from the configured YouTube channel
+   * Uses Supabase cache to avoid hitting YouTube API too frequently (24 hour cache)
    */
   static async getChannelVideos(maxResults: number = 50): Promise<YouTubeVideo[]> {
     try {
       if (!youtubeApiKey || !youtubeChannelId) {
         return [];
       }
+
+      // Try to get from cache first
+      const cachedVideos = await this.getCachedVideos(maxResults);
+      if (cachedVideos && cachedVideos.length > 0) {
+        console.log(`[YouTubeService] Returning ${cachedVideos.length} videos from cache`);
+        return cachedVideos;
+      }
+
+      // Cache miss or expired, fetch from YouTube API
+      console.log('[YouTubeService] Cache miss, fetching from YouTube API...');
 
       // First, get the uploads playlist ID from the channel
       const channelResponse = await youtube.channels.list({
@@ -82,7 +197,7 @@ export class YouTubeService {
       }
 
       // Transform YouTube data to our Video format
-      return videosResponse.data.items.map((video) => {
+      const videos = videosResponse.data.items.map((video) => {
         const snippet = video.snippet!;
         const statistics = video.statistics || {};
         const contentDetails = video.contentDetails || {};
@@ -101,8 +216,21 @@ export class YouTubeService {
           channelTitle: snippet.channelTitle || '',
         };
       });
+
+      // Save to cache for next time
+      await this.saveToCache(videos, maxResults);
+
+      return videos;
     } catch (error) {
-      console.error('Error fetching YouTube videos:', error);
+      console.error('[YouTubeService] Error fetching YouTube videos:', error);
+      
+      // On error, try to return cached data even if expired
+      const cachedVideos = await this.getCachedVideos(maxResults);
+      if (cachedVideos && cachedVideos.length > 0) {
+        console.log('[YouTubeService] YouTube API failed, returning stale cache');
+        return cachedVideos;
+      }
+      
       return [];
     }
   }

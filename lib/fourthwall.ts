@@ -1,6 +1,26 @@
 // Fourthwall API Client
 // Based on michiganmunchiemap integration pattern
 
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+
+// Supabase client for caching
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+let supabaseClient: SupabaseClient | null = null;
+
+function getSupabaseClient(): SupabaseClient | null {
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return null;
+  }
+  
+  if (!supabaseClient) {
+    supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+  }
+  
+  return supabaseClient;
+}
+
 export interface FourthwallProduct {
   id: string;
   title: string;
@@ -46,8 +66,136 @@ class FourthwallClient {
   }
 
   /**
+   * Get cached products from Supabase
+   * The products_cache table stores individual products, so we fetch all and filter
+   */
+  private async getCachedProducts(options: {
+    category?: string;
+    limit?: number;
+    featured?: boolean;
+  }): Promise<FourthwallProduct[] | null> {
+    try {
+      const client = getSupabaseClient();
+      if (!client) {
+        return null;
+      }
+
+      // Get all non-expired products from cache
+      const now = new Date().toISOString();
+      let query = client
+        .from('products_cache')
+        .select('raw_data, expires_at, category, in_stock')
+        .gt('expires_at', now);
+
+      // Filter by category if specified
+      if (options.category) {
+        query = query.eq('category', options.category);
+      }
+
+      const { data, error } = await query;
+
+      if (error || !data || data.length === 0) {
+        return null;
+      }
+
+      // Transform cached products
+      const products = data
+        .map((item: any) => {
+          const product = item.raw_data;
+          if (!product) return null;
+
+          return {
+            id: product.id || item.product_id,
+            title: product.title || product.name || '',
+            handle: product.handle || '',
+            price: parseFloat(product.price || item.price || 0),
+            compareAtPrice: product.compareAtPrice,
+            images: product.images || (item.image_url ? [item.image_url] : []),
+            available: item.in_stock !== false && product.available !== false,
+            variants: product.variants || [],
+            checkoutUrl: product.checkoutUrl || item.checkout_url || '',
+            collection: product.collection || item.category,
+            description: product.description || '',
+            tags: product.tags || [],
+          };
+        })
+        .filter((p: any): p is FourthwallProduct => p !== null);
+
+      // Apply filters
+      let filtered = products;
+      if (options.featured) {
+        filtered = filtered.filter(p => 
+          p.tags?.includes('featured') || 
+          p.tags?.includes('Featured') ||
+          p.collection === 'featured'
+        );
+      }
+
+      if (options.limit) {
+        filtered = filtered.slice(0, options.limit);
+      }
+
+      return filtered.length > 0 ? filtered : null;
+    } catch (error) {
+      console.error('[FourthwallClient] Error getting cache:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Save products to cache in Supabase
+   * Each product is cached individually by product_id
+   */
+  private async saveToCache(products: FourthwallProduct[], options: {
+    category?: string;
+    limit?: number;
+    featured?: boolean;
+  }): Promise<void> {
+    try {
+      const client = getSupabaseClient();
+      if (!client) {
+        return;
+      }
+
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 1); // 1 hour cache for products
+
+      // Save each product to cache individually
+      for (const product of products) {
+        const { error } = await client
+          .from('products_cache')
+          .upsert({
+            product_id: product.id,
+            name: product.title,
+            description: product.description,
+            price: product.price,
+            currency: 'USD',
+            image_url: product.images?.[0] || null,
+            category: product.collection || options.category || 'General',
+            in_stock: product.available,
+            checkout_url: product.checkoutUrl,
+            raw_data: product,
+            expires_at: expiresAt.toISOString(),
+            updated_at: new Date().toISOString(),
+          }, {
+            onConflict: 'product_id',
+          });
+
+        if (error) {
+          console.error(`[FourthwallClient] Error saving product ${product.id} to cache:`, error);
+        }
+      }
+
+      console.log(`[FourthwallClient] Cached ${products.length} products for 1 hour`);
+    } catch (error) {
+      console.error('[FourthwallClient] Error saving to cache:', error);
+    }
+  }
+
+  /**
    * Fetch products from Fourthwall Storefront API
    * Storefront API endpoint: https://[shop].fourthwall.com/api/storefront/products
+   * Uses Supabase cache to avoid hitting API too frequently (1 hour cache)
    */
   async getProducts(options: {
     category?: string;
@@ -55,10 +203,22 @@ class FourthwallClient {
     featured?: boolean;
   } = {}): Promise<FourthwallProduct[]> {
     try {
+      // Try to get from cache first
+      const cachedProducts = await this.getCachedProducts(options);
+      if (cachedProducts && cachedProducts.length > 0) {
+        console.log(`[FourthwallClient] Returning ${cachedProducts.length} products from cache`);
+        return cachedProducts;
+      }
+
+      // Cache miss or expired, fetch from Fourthwall
+      console.log('[FourthwallClient] Cache miss, fetching from Fourthwall API...');
+
       // Check if we have required credentials
       if (!this.storefrontToken || !this.shopUrl) {
         console.warn('Fourthwall credentials missing, falling back to JSON feed');
-        return await this.getProductsFromFeed(options);
+        const products = await this.getProductsFromFeed(options);
+        await this.saveToCache(products, options);
+        return products;
       }
 
       // Build Storefront API URL
@@ -104,19 +264,33 @@ class FourthwallClient {
       const transformed = this.transformProducts(products);
       
       // Apply featured filter if needed
+      let filtered = transformed;
       if (options.featured) {
-        return transformed.filter(p => 
+        filtered = transformed.filter(p => 
           p.tags?.includes('featured') || 
           p.tags?.includes('Featured') ||
           p.collection === 'featured'
         );
       }
 
-      return transformed;
+      // Save to cache for next time
+      await this.saveToCache(filtered, options);
+
+      return filtered;
     } catch (error) {
-      console.error('Fourthwall Storefront API error:', error);
+      console.error('[FourthwallClient] Storefront API error:', error);
+      
+      // On error, try to return cached data even if expired
+      const cachedProducts = await this.getCachedProducts(options);
+      if (cachedProducts && cachedProducts.length > 0) {
+        console.log('[FourthwallClient] API failed, returning stale cache');
+        return cachedProducts;
+      }
+      
       // Fallback to public JSON feed
-      return await this.getProductsFromFeed(options);
+      const products = await this.getProductsFromFeed(options);
+      await this.saveToCache(products, options);
+      return products;
     }
   }
 
@@ -159,9 +333,20 @@ class FourthwallClient {
         products = products.slice(0, options.limit);
       }
 
+      // Save to cache
+      await this.saveToCache(products, options);
+
       return products;
     } catch (error) {
-      console.error('Fourthwall feed error:', error);
+      console.error('[FourthwallClient] Feed error:', error);
+      
+      // Try to return cached data on error
+      const cachedProducts = await this.getCachedProducts(options);
+      if (cachedProducts && cachedProducts.length > 0) {
+        console.log('[FourthwallClient] Feed failed, returning stale cache');
+        return cachedProducts;
+      }
+      
       return [];
     }
   }

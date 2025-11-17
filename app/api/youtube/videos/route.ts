@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import { YouTubeService } from '@/lib/youtube';
 import { Video } from '@/data/videos';
 
+// Force dynamic rendering (cache is handled in YouTubeService)
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
