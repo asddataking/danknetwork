@@ -17,31 +17,40 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const clusterMarkersRef = useRef<maplibregl.Marker[]>([]);
   const clusterRef = useRef<Supercluster | null>(null);
+  const mapStyleRef = useRef<string>('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!mapContainer.current) return;
 
+    const maptilerKey = process.env.NEXT_PUBLIC_MAPTILER_KEY || '';
     const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_PUBLIC_TOKEN || '';
 
-    // Only use Mapbox - require valid token
-    if (!mapboxToken) {
-      console.error('[MapView] NEXT_PUBLIC_MAPBOX_PUBLIC_TOKEN is not set');
+    // Initialize map with MapTiler or Mapbox
+    if (maptilerKey) {
+      mapStyleRef.current = `https://api.maptiler.com/maps/streets-v2/style.json?key=${maptilerKey}`;
+      console.log('[MapView] Using MapTiler');
+    } else if (mapboxToken) {
+      if (!mapboxToken.startsWith('pk.')) {
+        console.error('[MapView] Invalid Mapbox token format. Token must start with "pk."');
+        console.error('[MapView] Current token starts with:', mapboxToken.substring(0, 3));
+        setLoading(false);
+        return;
+      }
+      
+      // Try streets-v12 style first
+      mapStyleRef.current = `https://api.mapbox.com/styles/v1/mapbox/streets-v12/style.json?access_token=${mapboxToken}`;
+      console.log('[MapView] Using Mapbox with streets-v12 style');
+      console.log('[MapView] Mapbox token (first 10 chars):', mapboxToken.substring(0, 10) + '...');
+    } else {
+      console.error('[MapView] No map provider configured. Please set NEXT_PUBLIC_MAPTILER_KEY or NEXT_PUBLIC_MAPBOX_PUBLIC_TOKEN');
       setLoading(false);
       return;
     }
-
-    if (!mapboxToken.startsWith('pk.')) {
-      console.error('[MapView] Invalid Mapbox token format. Token must start with "pk."');
-      setLoading(false);
-      return;
-    }
-
-    const mapStyle = `https://api.mapbox.com/styles/v1/mapbox/streets-v12/style.json?access_token=${mapboxToken}`;
 
     map.current = new maplibregl.Map({
       container: mapContainer.current,
-      style: mapStyle,
+      style: mapStyleRef.current as any,
       center: [-84.5467, 44.3148],
       zoom: 6,
     });
@@ -96,9 +105,38 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
     });
 
     map.current.on('style.error', (e: any) => {
-      console.error('[MapView] Mapbox style loading error:', e);
-      console.error('[MapView] Please check your NEXT_PUBLIC_MAPBOX_PUBLIC_TOKEN in Vercel environment variables');
-      setLoading(false);
+      console.error('[MapView] Style loading error:', e);
+      console.error('[MapView] Error details:', {
+        error: e.error,
+        message: e.message,
+        type: e.type,
+      });
+      
+      // Try alternative Mapbox styles if streets-v12 fails
+      if (mapboxToken && mapboxToken.startsWith('pk.') && map.current) {
+        const currentStyle = mapStyleRef.current;
+        const currentStyleName = currentStyle.match(/mapbox\/([^/]+)\//)?.[1];
+        
+        if (currentStyleName === 'streets-v12') {
+          console.warn('[MapView] streets-v12 failed, trying streets-v11...');
+          const altStyle = `https://api.mapbox.com/styles/v1/mapbox/streets-v11/style.json?access_token=${mapboxToken}`;
+          mapStyleRef.current = altStyle;
+          map.current.setStyle(altStyle);
+        } else {
+          console.error('[MapView] Mapbox style failed. Possible issues:');
+          console.error('1. Token is invalid or expired');
+          console.error('2. Token does not have STYLES:READ scope');
+          console.error('3. Token has URL restrictions that block this domain');
+          console.error('4. Style name is incorrect or not available for your account');
+          console.error('[MapView] Please check your Mapbox token in Vercel environment variables');
+          console.error('[MapView] Token should have scopes: STYLES:READ, DATASETS:READ, FONTS:READ, SPRITE:READ');
+          console.error('[MapView] Current style URL:', currentStyle);
+          setLoading(false);
+        }
+      } else {
+        console.error('[MapView] Please check your map token configuration in Vercel environment variables');
+        setLoading(false);
+      }
     });
 
     map.current.on('moveend', () => {
@@ -268,61 +306,35 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
           console.warn('[MapView] Invalid place in cluster:', place);
           return;
         }
-        
-        const isSelected = selectedPlace?.id === place.id;
 
         const el = document.createElement('div');
         el.className = 'marker';
         el.style.width = place.is_verified ? '24px' : '20px';
         el.style.height = place.is_verified ? '24px' : '20px';
         el.style.borderRadius = '50%';
-        el.style.backgroundColor = isSelected
-          ? '#00ff00'
-          : place.is_verified
-          ? '#00ff00'
-          : '#00cc00';
-        el.style.border = isSelected ? '4px solid #fff' : '3px solid #000';
+        el.style.backgroundColor = place.is_verified ? '#00ff00' : '#00cc00';
+        el.style.border = '3px solid #000';
         el.style.cursor = 'pointer';
-        el.style.boxShadow = isSelected
-          ? '0 0 15px rgba(0, 255, 0, 1)'
-          : place.is_verified
+        el.style.boxShadow = place.is_verified
           ? '0 0 10px rgba(0, 255, 0, 0.8)'
           : '0 0 5px rgba(0, 204, 0, 0.5)';
-        el.style.transition = 'all 0.2s';
-        el.style.zIndex = isSelected ? '1001' : '1000';
-        el.style.position = 'relative';
 
-        // Determine if this is a dispensary or restaurant
-        const isDispensary = place.tags?.includes('Dispensary') || place.cuisines?.includes('Cannabis');
-        const placeType = isDispensary ? 'Dispensary' : 'Restaurant';
-
-        // Create popup for click
-        const clickPopup = new maplibregl.Popup({ 
-          offset: 25, 
-          className: 'map-popup',
-          closeButton: true,
-          closeOnClick: false,
-        }).setHTML(`
+        const popup = new maplibregl.Popup({ offset: 25, className: 'map-popup' }).setHTML(`
           <div class="text-black p-3 min-w-[200px]">
             <div class="flex items-start justify-between mb-2">
-              <div class="flex-1">
-                <h3 class="font-bold text-lg">${place.name}</h3>
-                <span class="text-xs text-gray-500 uppercase">${placeType}</span>
-              </div>
+              <h3 class="font-bold text-lg">${place.name}</h3>
               ${place.is_verified ? '<span class="text-xs bg-green-500 text-white px-2 py-1 rounded">✓ Verified</span>' : ''}
             </div>
             ${place.address ? `<p class="text-sm text-gray-600 mb-1">${place.address}</p>` : ''}
             ${place.city ? `<p class="text-sm text-gray-600 mb-1">${place.city}${place.state ? `, ${place.state}` : ''}</p>` : ''}
             ${place.rating ? `<p class="text-sm text-gray-600 mb-1">⭐ ${place.rating.toFixed(1)}</p>` : ''}
-            ${place.cuisines && place.cuisines.length > 0 ? `<p class="text-xs text-gray-500 mt-2">${place.cuisines.filter((c: string) => c !== 'Cannabis').join(', ') || place.cuisines.join(', ')}</p>` : ''}
-            ${place.tags && place.tags.length > 0 ? `<p class="text-xs text-gray-400 mt-1">${place.tags.filter((t: string) => !t.includes('Featured') && t !== 'Dispensary' && t !== 'Michigan Munchie Map').slice(0, 3).join(' • ')}</p>` : ''}
+            ${place.cuisines && place.cuisines.length > 0 ? `<p class="text-xs text-gray-500 mt-2">${place.cuisines.join(', ')}</p>` : ''}
             <div class="mt-3 flex gap-2">
-              ${place.slug ? `<a href="/place/${place.slug}" class="text-xs bg-neon-green text-black px-3 py-1 rounded font-bold hover:bg-neon-green-dark transition-colors">View Details</a>` : ''}
               <a 
                 href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${place.name} ${place.address || ''} ${place.city || ''}`)}"
                 target="_blank"
                 rel="noopener noreferrer"
-                class="text-xs border border-gray-300 px-3 py-1 rounded hover:bg-gray-100 transition-colors"
+                class="text-xs bg-neon-green text-black px-3 py-1 rounded font-bold hover:bg-neon-green-dark transition-colors"
               >
                 Directions
               </a>
@@ -331,54 +343,17 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
           </div>
         `);
 
-        // Create hover popup (simpler, just name and type)
-        const hoverPopup = new maplibregl.Popup({ 
-          offset: 25, 
-          className: 'map-popup',
-          closeButton: false,
-          closeOnClick: false,
-        }).setHTML(`
-          <div class="text-black p-2 min-w-[150px]">
-            <h3 class="font-bold text-base">${place.name}</h3>
-            <span class="text-xs text-gray-500 uppercase">${placeType}</span>
-          </div>
-        `);
-
-        const marker = new maplibregl.Marker({ element: el })
+        const marker = new maplibregl.Marker(el)
           .setLngLat([place.longitude, place.latitude])
-          .setPopup(clickPopup)
+          .setPopup(popup)
           .addTo(currentMap);
-        
-        console.log(`[MapView] Added marker for ${place.name} at [${place.longitude}, ${place.latitude}]`);
-
-        // Show hover popup on mouseenter, hide on mouseout
-        let hoverPopupOpen = false;
-        el.addEventListener('mouseenter', () => {
-          if (!hoverPopupOpen) {
-            hoverPopup.setLngLat([place.longitude, place.latitude]).addTo(currentMap);
-            hoverPopupOpen = true;
-          }
-        });
-
-        el.addEventListener('mouseleave', () => {
-          if (hoverPopupOpen) {
-            hoverPopup.remove();
-            hoverPopupOpen = false;
-          }
-        });
-
-        el.addEventListener('click', () => {
-          onPlaceSelect(place);
-          // Close hover popup if open
-          if (hoverPopupOpen) {
-            hoverPopup.remove();
-            hoverPopupOpen = false;
-          }
-          // Open click popup
-          marker.togglePopup();
-        });
 
         markersRef.current.push(marker);
+
+        // Add click handler
+        el.addEventListener('click', () => {
+          onPlaceSelect(place);
+        });
       }
     });
   };
