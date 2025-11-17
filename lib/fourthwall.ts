@@ -119,16 +119,19 @@ class FourthwallClient {
             tags: product.tags || [],
           };
         })
-        .filter((p: any): p is FourthwallProduct => p !== null);
+        .filter((p): p is FourthwallProduct => p !== null);
 
       // Apply filters
       let filtered = products;
       if (options.featured) {
-        filtered = filtered.filter(p => 
-          p.tags?.includes('featured') || 
-          p.tags?.includes('Featured') ||
-          p.collection === 'featured'
-        );
+        filtered = filtered.filter((p): p is FourthwallProduct => {
+          if (!p) return false;
+          return (
+            p.tags?.includes('featured') || 
+            p.tags?.includes('Featured') ||
+            p.collection === 'featured'
+          );
+        });
       }
 
       if (options.limit) {
