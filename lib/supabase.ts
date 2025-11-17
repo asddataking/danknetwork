@@ -111,7 +111,7 @@ export class PlacesService {
 
       const { data, error } = await query
         .order('is_featured', { ascending: false })
-        .order('rating', { ascending: false, nullsLast: true })
+        .order('rating', { ascending: false, nullsFirst: false })
         .limit(500);
 
       if (error) throw error;
