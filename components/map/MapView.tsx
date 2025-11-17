@@ -26,8 +26,8 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
     const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_PUBLIC_TOKEN || '';
 
     // Default to OpenStreetMap style (works without API keys)
-    const defaultStyle = {
-      version: 8,
+    const defaultStyle: maplibregl.StyleSpecification = {
+      version: 8 as const,
       sources: {
         'raster-tiles': {
           type: 'raster',
