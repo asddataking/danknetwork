@@ -110,9 +110,10 @@ class FourthwallClient {
 
       // Apply filters
       if (options.category) {
+        const category = options.category;
         products = products.filter(p => 
-          p.collection === options.category || 
-          p.tags?.includes(options.category)
+          p.collection === category || 
+          (p.tags && p.tags.includes(category))
         );
       }
 
