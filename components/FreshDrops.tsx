@@ -11,11 +11,13 @@ export default function FreshDrops() {
   useEffect(() => {
     async function fetchProducts() {
       try {
+        console.log('[FreshDrops] Fetching products...');
         const response = await fetch('/api/fourthwall/products?limit=4');
         const data = await response.json();
+        console.log('[FreshDrops] Received products:', data.products?.length || 0, data);
         setProducts(data.products || []);
       } catch (error) {
-        console.error('Failed to fetch products:', error);
+        console.error('[FreshDrops] Failed to fetch products:', error);
       } finally {
         setLoading(false);
       }
@@ -84,11 +86,19 @@ export default function FreshDrops() {
           >
             {/* Image */}
             <div className="relative aspect-square bg-gray-900 overflow-hidden rounded-t-lg">
-              {product.images && product.images.length > 0 ? (
+              {product.images && product.images.length > 0 && product.images[0] ? (
                 <img
                   src={product.images[0]}
                   alt={product.title}
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  onError={(e) => {
+                    // Hide broken images
+                    (e.target as HTMLImageElement).style.display = 'none';
+                    const parent = (e.target as HTMLImageElement).parentElement;
+                    if (parent) {
+                      parent.innerHTML = '<div class="w-full h-full bg-gray-800 flex items-center justify-center"><span class="text-gray-600 text-sm">No Image</span></div>';
+                    }
+                  }}
                 />
               ) : (
                 <div className="w-full h-full bg-gray-800 flex items-center justify-center">

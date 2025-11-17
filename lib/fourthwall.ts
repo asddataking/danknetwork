@@ -107,6 +107,16 @@ class FourthwallClient {
             product = item.raw_data;
           }
 
+          // Extract images - handle both 'image' (singular) and 'images' (plural)
+          let images: string[] = [];
+          if (product?.images) {
+            images = Array.isArray(product.images) ? product.images : [product.images];
+          } else if (product?.image) {
+            images = [product.image];
+          } else if (item.image_url) {
+            images = [item.image_url];
+          }
+
           // Build product from raw_data or individual fields
           const transformed: FourthwallProduct = {
             id: product?.id || item.product_id || '',
@@ -115,10 +125,8 @@ class FourthwallClient {
             price: product?.price 
               ? (typeof product.price === 'string' ? parseFloat(product.price) : product.price)
               : parseFloat(item.price || 0),
-            images: product?.images 
-              ? (Array.isArray(product.images) ? product.images : [product.images])
-              : (item.image_url ? [item.image_url] : []),
-            available: item.in_stock !== false && (product?.available !== false),
+            images: images,
+            available: item.in_stock !== false && (product?.available !== false && product?.inStock !== false),
             variants: product?.variants || [],
             checkoutUrl: product?.checkoutUrl || item.checkout_url || '',
             collection: product?.collection || item.category || 'General',
@@ -390,15 +398,23 @@ class FourthwallClient {
         if (price > 1000) price = price / 100;
       }
 
-      // Handle images - could be array of strings or objects
+      // Handle images - could be array of strings or objects, or single image
       let images: string[] = [];
       if (product.images) {
-        images = product.images.map((img: any) => {
-          if (typeof img === 'string') return img;
-          return img.src || img.url || img;
-        });
+        images = Array.isArray(product.images) 
+          ? product.images.map((img: any) => {
+              if (typeof img === 'string') return img;
+              return img.src || img.url || img;
+            })
+          : [product.images];
       } else if (product.image) {
-        images = [typeof product.image === 'string' ? product.image : product.image.src || product.image.url];
+        // Handle single image (could be string or object)
+        const imageUrl = typeof product.image === 'string' 
+          ? product.image 
+          : product.image.src || product.image.url || product.image;
+        if (imageUrl) {
+          images = [imageUrl];
+        }
       }
 
       // Handle checkout URL
