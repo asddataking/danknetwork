@@ -26,6 +26,14 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
     const maptilerKey = process.env.NEXT_PUBLIC_MAPTILER_KEY || '';
     const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_PUBLIC_TOKEN || '';
 
+    // Debug: Log token info (both accounts share the same public token)
+    if (mapboxToken) {
+      console.log('[MapView] Mapbox public token configured (length:', mapboxToken.length + ')');
+      console.log('[MapView] Token starts with:', mapboxToken.substring(0, 10) + '...');
+      console.log('[MapView] Note: Both accounts share the same public token');
+      console.log('[MapView] URL restrictions are set per-account in Mapbox dashboard');
+    }
+
     // Initialize map with MapTiler or Mapbox (matching reference implementation exactly)
     const mapStyle = maptilerKey
       ? `https://api.maptiler.com/maps/streets-v2/style.json?key=${maptilerKey}`
@@ -40,13 +48,6 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
     }
 
     mapStyleRef.current = mapStyle;
-    
-    // Debug: Log the style URL (without exposing full token)
-    if (mapboxToken) {
-      const urlParts = mapStyle.split('?');
-      console.log('[MapView] Mapbox style URL:', urlParts[0] + '?access_token=***');
-      console.log('[MapView] Token length:', mapboxToken.length, 'starts with:', mapboxToken.substring(0, 3));
-    }
 
     map.current = new maplibregl.Map({
       container: mapContainer.current,
@@ -72,6 +73,22 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
     // Handle map load (matching reference exactly - simple, no complex error handling)
     map.current.on('load', () => {
       setLoading(false);
+    });
+
+    // Handle errors - log helpful message for 404 (likely URL restrictions)
+    map.current.on('error', (e: any) => {
+      if (e.error?.status === 404) {
+        console.error('[MapView] Mapbox 404 error detected');
+        console.error('[MapView] Since both accounts share the same public token:');
+        console.error('1. Check URL restrictions on BOTH accounts in Mapbox dashboard');
+        console.error('2. For Dank Network account: https://account.mapbox.com/access-tokens/');
+        console.error('3. Ensure "*.vercel.app" is in the allowed URLs list');
+        console.error('4. Token restrictions may need to be updated on the Dank Network account');
+        console.error('5. After updating, you may need to wait a few minutes for changes to propagate');
+        console.error('[MapView] Test token directly:', mapStyleRef.current?.split('?')[0] + '?access_token=YOUR_TOKEN');
+      }
+      // Don't set loading to false here - let map try to load anyway
+      // Sometimes the error is transient or the map can still render
     });
 
     map.current.on('moveend', () => {
