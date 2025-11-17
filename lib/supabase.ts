@@ -254,8 +254,47 @@ export class PlacesService {
         return [];
       }
 
-      // Use a query that extracts lat/lng from geography
-      // We'll select all fields and let the API route handle coordinate extraction
+      // Try using the search_places RPC function first (if it exists)
+      try {
+        const rpcParams: any = {};
+        if (searchTerm) rpcParams.search_text = searchTerm;
+        if (filters?.counties && filters.counties.length > 0) rpcParams.county_filter = filters.counties;
+        if (filters?.cuisines && filters.cuisines.length > 0) rpcParams.cuisine_filter = filters.cuisines;
+        if (filters?.tags && filters.tags.length > 0) rpcParams.tag_filter = filters.tags;
+        if (filters?.priceMin !== undefined) rpcParams.min_price = filters.priceMin;
+        if (filters?.priceMax !== undefined) rpcParams.max_price = filters.priceMax;
+        if (filters?.minRating !== undefined) rpcParams.min_rating = filters.minRating;
+        if (filters?.featured !== undefined) rpcParams.featured_only = filters.featured;
+        if (filters?.verified !== undefined) rpcParams.verified_only = filters.verified;
+        rpcParams.limit_count = 500;
+
+        const { data, error } = await client.rpc('search_places', rpcParams);
+        
+        if (!error && data && data.length > 0) {
+          console.log(`[PlacesService] RPC search_places returned ${data.length} places`);
+          // RPC returns location as GeoJSON: { type: 'Point', coordinates: [lng, lat] }
+          const places = (data || []).map((place: any) => {
+            if (place.location && typeof place.location === 'object') {
+              if (place.location.coordinates && Array.isArray(place.location.coordinates) && place.location.coordinates.length >= 2) {
+                return {
+                  ...place,
+                  longitude: place.location.coordinates[0],
+                  latitude: place.location.coordinates[1],
+                };
+              }
+            }
+            return place;
+          }).filter((place: any) => place.latitude && place.longitude);
+          
+          if (places.length > 0) {
+            return places;
+          }
+        }
+      } catch (rpcError) {
+        console.warn('[PlacesService] RPC search_places failed, using direct query:', rpcError);
+      }
+
+      // Fallback to direct query
       let query = client
         .from('places')
         .select('*')
@@ -308,6 +347,7 @@ export class PlacesService {
       
       // Transform data to extract lat/lng from geography GeoJSON
       const places = (data || []).map((place: any) => {
+        // Check if location is GeoJSON format
         if (place.location && typeof place.location === 'object') {
           if (place.location.coordinates && Array.isArray(place.location.coordinates) && place.location.coordinates.length >= 2) {
             return {
@@ -316,10 +356,26 @@ export class PlacesService {
               latitude: place.location.coordinates[1],
             };
           }
+          // Sometimes it might be stored as { lng, lat }
+          if (place.location.lng !== undefined && place.location.lat !== undefined) {
+            return {
+              ...place,
+              longitude: place.location.lng,
+              latitude: place.location.lat,
+            };
+          }
         }
+        // If already has lat/lng, return as is
         return place;
-      }).filter((place: any) => place.latitude && place.longitude);
+      }).filter((place: any) => {
+        const hasCoords = place.latitude && place.longitude;
+        if (!hasCoords) {
+          console.warn(`[PlacesService] Place ${place.id || place.name} missing coordinates after transformation`);
+        }
+        return hasCoords;
+      });
       
+      console.log(`[PlacesService] searchPlaces returning ${places.length} places with coordinates`);
       return places;
     } catch (error) {
       console.error('Error searching places:', error);

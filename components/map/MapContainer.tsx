@@ -18,9 +18,10 @@ export default function MapContainer() {
   const [filters, setFilters] = useState<any>({});
   const [loading, setLoading] = useState(true);
 
-  // Fetch places
+  // Fetch places on mount and when filters change
   useEffect(() => {
     const fetchPlaces = async () => {
+      setLoading(true);
       try {
         const params = new URLSearchParams();
         if (filters.search) params.append('search', filters.search);
@@ -33,19 +34,35 @@ export default function MapContainer() {
         if (filters.priceMax !== undefined) params.append('priceMax', filters.priceMax.toString());
         if (filters.minRating !== undefined) params.append('minRating', filters.minRating.toString());
 
-        const response = await fetch(`/api/places?${params.toString()}`);
+        const apiUrl = `/api/places?${params.toString()}`;
+        console.log(`[MapContainer] Fetching places from: ${apiUrl}`);
+        
+        const response = await fetch(apiUrl);
         if (response.ok) {
           const data = await response.json();
           const fetchedPlaces = data.places || [];
-          console.log(`[MapContainer] Fetched ${fetchedPlaces.length} places`);
-          setPlaces(fetchedPlaces);
-          setFilteredPlaces(fetchedPlaces);
+          console.log(`[MapContainer] Fetched ${fetchedPlaces.length} places`, fetchedPlaces);
+          
+          // Verify places have coordinates
+          const placesWithCoords = fetchedPlaces.filter((p: Place) => p.latitude && p.longitude);
+          console.log(`[MapContainer] ${placesWithCoords.length} places have valid coordinates`);
+          
+          if (placesWithCoords.length === 0 && fetchedPlaces.length > 0) {
+            console.error('[MapContainer] Places fetched but none have coordinates!', fetchedPlaces[0]);
+          }
+          
+          setPlaces(placesWithCoords);
+          setFilteredPlaces(placesWithCoords);
         } else {
           const errorData = await response.json().catch(() => ({}));
           console.error('[MapContainer] API error:', response.status, errorData);
+          setPlaces([]);
+          setFilteredPlaces([]);
         }
       } catch (error) {
         console.error('[MapContainer] Error fetching places:', error);
+        setPlaces([]);
+        setFilteredPlaces([]);
       } finally {
         setLoading(false);
       }
