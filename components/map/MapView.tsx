@@ -38,10 +38,13 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
         return;
       }
       
-      // Try streets-v12 style first
+      // Try streets-v12 style first (standard Mapbox style)
+      // According to Mapbox docs: https://docs.mapbox.com/api/maps/styles/
+      // Standard styles: streets-v12, outdoors-v12, light-v11, dark-v11, satellite-v9, satellite-streets-v12, navigation-day-v1, navigation-night-v1
       mapStyleRef.current = `https://api.mapbox.com/styles/v1/mapbox/streets-v12/style.json?access_token=${mapboxToken}`;
       console.log('[MapView] Using Mapbox with streets-v12 style');
       console.log('[MapView] Mapbox token (first 10 chars):', mapboxToken.substring(0, 10) + '...');
+      console.log('[MapView] Style URL format:', mapStyleRef.current.replace(mapboxToken, 'TOKEN_HIDDEN'));
     } else {
       console.error('[MapView] No map provider configured. Please set NEXT_PUBLIC_MAPTILER_KEY or NEXT_PUBLIC_MAPBOX_PUBLIC_TOKEN');
       setLoading(false);
@@ -86,6 +89,16 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
     // Handle map errors
     map.current.on('error', (e: any) => {
       console.error('[MapView] Mapbox error:', e);
+      console.error('[MapView] Error type:', e.error?.type, 'Message:', e.error?.message);
+      
+      // Check if it's a style loading error (404)
+      if (e.error?.status === 404 || e.error?.message?.includes('404')) {
+        console.error('[MapView] 404 error - Style not found. This usually means:');
+        console.error('1. The style name is incorrect');
+        console.error('2. The token does not have access to this style');
+        console.error('3. The token is invalid or expired');
+      }
+      
       setLoading(false);
     });
 
@@ -110,6 +123,7 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
         error: e.error,
         message: e.message,
         type: e.type,
+        status: e.status,
       });
       
       // Try alternative Mapbox styles if streets-v12 fails
@@ -118,12 +132,19 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
         const currentStyleName = currentStyle.match(/mapbox\/([^/]+)\//)?.[1];
         
         if (currentStyleName === 'streets-v12') {
-          console.warn('[MapView] streets-v12 failed, trying streets-v11...');
+          console.warn('[MapView] streets-v12 returned 404, trying streets-v11...');
           const altStyle = `https://api.mapbox.com/styles/v1/mapbox/streets-v11/style.json?access_token=${mapboxToken}`;
           mapStyleRef.current = altStyle;
           map.current.setStyle(altStyle);
+          return; // Don't set loading to false yet, let it try v11
+        } else if (currentStyleName === 'streets-v11') {
+          console.warn('[MapView] streets-v11 also failed, trying basic-v9...');
+          const altStyle = `https://api.mapbox.com/styles/v1/mapbox/basic-v9/style.json?access_token=${mapboxToken}`;
+          mapStyleRef.current = altStyle;
+          map.current.setStyle(altStyle);
+          return;
         } else {
-          console.error('[MapView] Mapbox style failed. Possible issues:');
+          console.error('[MapView] All Mapbox styles failed. Possible issues:');
           console.error('1. Token is invalid or expired');
           console.error('2. Token does not have STYLES:READ scope');
           console.error('3. Token has URL restrictions that block this domain');
@@ -131,6 +152,7 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
           console.error('[MapView] Please check your Mapbox token in Vercel environment variables');
           console.error('[MapView] Token should have scopes: STYLES:READ, DATASETS:READ, FONTS:READ, SPRITE:READ');
           console.error('[MapView] Current style URL:', currentStyle);
+          console.error('[MapView] Full token (for debugging):', mapboxToken);
           setLoading(false);
         }
       } else {
