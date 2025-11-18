@@ -178,6 +178,10 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
     clusterMarkersRef.current = [];
 
     const bounds = currentMap.getBounds();
+    if (!bounds) {
+      console.warn('[MapView] Map bounds not available, skipping marker update');
+      return;
+    }
     const bbox: [number, number, number, number] = [
       bounds.getWest(),
       bounds.getSouth(),
