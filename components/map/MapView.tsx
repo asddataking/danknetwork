@@ -26,27 +26,6 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
     const maptilerKey = process.env.NEXT_PUBLIC_MAPTILER_KEY || '';
     const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '';
 
-    // Debug: Log token info
-    if (mapboxToken) {
-      console.log('[MapView] Mapbox public token configured (length:', mapboxToken.length + ')');
-      console.log('[MapView] Token starts with:', mapboxToken.substring(0, 10) + '...');
-      // Decode token to verify which account it belongs to
-      try {
-        const tokenParts = mapboxToken.split('.');
-        if (tokenParts.length >= 2) {
-          const payload = JSON.parse(atob(tokenParts[1]));
-          const accountName = payload.u || 'unknown';
-          console.log('[MapView] Token account:', accountName);
-          if (accountName === 'dankndevour') {
-            console.warn('[MapView] ⚠️ Still using dankndevour token - update NEXT_PUBLIC_MAPBOX_TOKEN in Vercel');
-          } else {
-            console.log('[MapView] ✓ Using Dank Network token');
-          }
-        }
-      } catch (e) {
-        // Token decode failed, continue anyway
-      }
-    }
 
     // Initialize map with MapTiler or Mapbox (matching reference implementation exactly)
     // For Mapbox, the token is included in the style URL and also needs to be added to tile requests
@@ -63,28 +42,6 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
     }
 
     mapStyleRef.current = mapStyle;
-
-    // Validate Mapbox token can access styles before initializing map
-    if (mapboxToken && !maptilerKey) {
-      const testStyleUrl = `https://api.mapbox.com/styles/v1/mapbox/streets-v12/style.json?access_token=${mapboxToken}`;
-      fetch(testStyleUrl, { method: 'HEAD' })
-        .then((response) => {
-          if (!response.ok) {
-            console.error('[MapView] ❌ Mapbox token validation failed:', response.status, response.statusText);
-            console.error('[MapView] The token cannot access Mapbox styles. Please check:');
-            console.error('[MapView] 1. Go to https://account.mapbox.com/access-tokens/');
-            console.error('[MapView] 2. Ensure your token has "styles:read" scope enabled');
-            console.error('[MapView] 3. If using URL restrictions, add "*.vercel.app" and your production domain');
-            console.error('[MapView] 4. Mapbox styles require a paid account - ensure your account has access');
-            console.error('[MapView] 5. Try creating a new token with all public scopes enabled');
-          } else {
-            console.log('[MapView] ✓ Mapbox token validated - can access styles');
-          }
-        })
-        .catch((error) => {
-          console.error('[MapView] Error validating Mapbox token:', error);
-        });
-    }
 
     // For Mapbox styles with MapLibre GL, we need to add the token to all Mapbox requests
     // This includes tiles, sprites, glyphs, and other resources
@@ -131,43 +88,12 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
       setLoading(false);
     });
 
-    // Handle style loading errors
-    map.current.on('style.loading', () => {
-      console.log('[MapView] Style loading...');
-    });
 
     // Handle errors - but don't block map rendering
-    // The map may still work even if style.json returns 404 initially
     map.current.on('error', (e: any) => {
       console.error('[MapView] Map error:', e);
-      if (e.error?.status === 404) {
-        console.error('[MapView] ❌ 404 error - Mapbox style not accessible');
-        console.error('[MapView] This usually means:');
-        console.error('[MapView] 1. Token missing "styles:read" scope - go to https://account.mapbox.com/access-tokens/');
-        console.error('[MapView] 2. Account needs paid plan for Mapbox styles');
-        console.error('[MapView] 3. URL restrictions blocking the request');
-        console.error('[MapView] 4. Token is invalid or expired');
-        console.error('[MapView]');
-        console.error('[MapView] Solution:');
-        console.error('[MapView] 1. Go to https://account.mapbox.com/access-tokens/');
-        console.error('[MapView] 2. Edit your token and ensure "styles:read" scope is enabled');
-        console.error('[MapView] 3. If using URL restrictions, add "*.vercel.app" and your production domain');
-        console.error('[MapView] 4. Ensure your Mapbox account has access to styles (may require paid plan)');
-        console.error('[MapView] 5. Update NEXT_PUBLIC_MAPBOX_TOKEN in Vercel if you created a new token');
-        // Don't set loading to false - let map continue trying
-        // MapLibre may retry or use cached style
-      } else if (e.error?.status === 401) {
-        console.error('[MapView] ❌ 401 error - Mapbox token is unauthorized');
-        console.error('[MapView] The token is invalid, expired, or missing required scopes');
-        console.error('[MapView] Go to https://account.mapbox.com/access-tokens/ to check your token');
-      }
     });
 
-    // Handle style errors separately
-    map.current.on('style.error', (e: any) => {
-      console.error('[MapView] Style error:', e);
-      // Still don't block - map might render with default style
-    });
 
     map.current.on('moveend', () => {
       if (map.current && map.current.loaded() && clusterRef.current) {
