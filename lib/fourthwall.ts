@@ -490,12 +490,21 @@ class FourthwallClient {
         return [];
       }
 
-      const feedUrl = `${this.shopUrl}/products.json`;
+      // Ensure shopUrl doesn't have trailing slash
+      const cleanShopUrl = this.shopUrl.replace(/\/$/, '');
+      const feedUrl = `${cleanShopUrl}/products.json`;
       console.log('[FourthwallClient] Fetching from JSON feed:', feedUrl);
-      const response = await fetch(feedUrl);
+      console.log('[FourthwallClient] Shop URL configured:', this.shopUrl ? 'Yes' : 'No');
+      
+      const response = await fetch(feedUrl, {
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
       
       if (!response.ok) {
-        console.error(`[FourthwallClient] Feed fetch failed: ${response.status} ${response.statusText}`);
+        const errorText = await response.text().catch(() => '');
+        console.error(`[FourthwallClient] Feed fetch failed: ${response.status} ${response.statusText}`, errorText);
         throw new Error(`Failed to fetch products feed: ${response.status}`);
       }
 

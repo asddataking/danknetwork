@@ -106,9 +106,9 @@ export default function MapContainer() {
 
         {/* Map/List Area */}
         <div className="flex-1 flex overflow-hidden">
-          {/* Map View */}
+          {/* Map View - Reduced by 20% */}
           {(viewMode === 'map' || viewMode === 'split') && (
-            <div className={viewMode === 'split' ? 'w-1/2 border-r border-neon-green/20' : 'w-full'}>
+            <div className={viewMode === 'split' ? 'w-[40%] border-r border-neon-green/20' : 'w-[80%]'}>
               <MapView
                 places={filteredPlaces}
                 selectedPlace={selectedPlace}
@@ -117,9 +117,9 @@ export default function MapContainer() {
             </div>
           )}
 
-          {/* List View */}
+          {/* List View - Adjusted for reduced map size */}
           {(viewMode === 'list' || viewMode === 'split') && (
-            <div className={viewMode === 'split' ? 'w-1/2 overflow-y-auto' : 'w-full overflow-y-auto'}>
+            <div className={viewMode === 'split' ? 'w-[60%] overflow-y-auto' : 'w-full overflow-y-auto'}>
               <PlacesList
                 places={filteredPlaces}
                 selectedPlace={selectedPlace}

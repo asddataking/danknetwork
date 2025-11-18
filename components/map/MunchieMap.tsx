@@ -158,10 +158,16 @@ export default function MunchieMap({ initialPlaces = [], filters = {} }: Munchie
           ${place.cuisines && place.cuisines.length > 0 ? `<p class="text-xs text-gray-500 mt-2">${place.cuisines.join(', ')}</p>` : ''}
           <div class="mt-3 flex gap-2">
             <a 
+              href="/place/${place.slug}"
+              class="text-xs bg-neon-green text-black px-3 py-1 rounded font-bold hover:bg-neon-green-dark transition-colors"
+            >
+              View
+            </a>
+            <a 
               href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${place.name} ${place.address || ''} ${place.city || ''}`)}"
               target="_blank"
               rel="noopener noreferrer"
-              class="text-xs bg-neon-green text-black px-3 py-1 rounded font-bold hover:bg-neon-green-dark transition-colors"
+              class="text-xs border border-gray-300 px-3 py-1 rounded hover:bg-gray-100 transition-colors"
             >
               Directions
             </a>

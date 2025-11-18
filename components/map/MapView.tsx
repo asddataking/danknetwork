@@ -21,7 +21,7 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!mapContainer.current) return;
+    if (!mapContainer.current || map.current) return; // Prevent re-initialization
 
     const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '';
 
@@ -34,12 +34,16 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
     // Set Mapbox access token (required for Mapbox GL JS)
     mapboxgl.accessToken = mapboxToken;
 
-    // Initialize map with Mapbox style (matching Mapbox GL JS documentation)
+    // Initialize map with Mapbox style and caching to reduce API calls
+    // Mapbox GL JS automatically uses browser cache for tiles, sprites, and glyphs
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: 'mapbox://styles/mapbox/streets-v12', // Use Mapbox Streets style
       center: [-84.5467, 44.3148], // Center of Michigan
       zoom: 6,
+      // Enable tile caching to reduce API calls
+      maxTileCacheSize: 50, // Cache up to 50 tiles in memory
+      // Browser automatically caches tiles based on HTTP cache headers from Mapbox
     });
 
     // Add navigation controls
@@ -67,17 +71,19 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
       console.error('[MapView] Map error:', e);
     });
 
-    map.current.on('moveend', () => {
-      if (map.current && map.current.loaded() && clusterRef.current) {
-        updateMarkers();
-      }
-    });
+    // Debounce marker updates to reduce unnecessary re-renders and API calls
+    let updateTimeout: NodeJS.Timeout | null = null;
+    const debouncedUpdateMarkers = () => {
+      if (updateTimeout) clearTimeout(updateTimeout);
+      updateTimeout = setTimeout(() => {
+        if (map.current && map.current.loaded() && clusterRef.current) {
+          updateMarkers();
+        }
+      }, 150); // 150ms debounce to reduce API calls
+    };
 
-    map.current.on('zoomend', () => {
-      if (map.current && map.current.loaded() && clusterRef.current) {
-        updateMarkers();
-      }
-    });
+    map.current.on('moveend', debouncedUpdateMarkers);
+    map.current.on('zoomend', debouncedUpdateMarkers);
 
     return () => {
       if (map.current) {
@@ -113,13 +119,19 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
         return;
       }
 
-      console.log(`[MapView] Initializing markers for ${places.length} places`);
+      console.log(`[MapView] Initializing markers for ${places.length} places from places data`);
       
-      const points = places
+      // Filter to ensure we only use places with valid coordinates
+      // Remove duplicates by place ID to prevent duplicate markers
+      const uniquePlaces = Array.from(
+        new Map(places.map(p => [p.id, p])).values()
+      );
+      
+      const points = uniquePlaces
         .filter((p) => {
           const hasCoords = p.latitude && p.longitude;
           if (!hasCoords) {
-            console.warn(`[MapView] Place ${p.id || p.name} missing coordinates`);
+            console.warn(`[MapView] Place ${p.id || p.name} missing coordinates - skipping marker`);
           }
           return hasCoords;
         })
@@ -132,7 +144,7 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
           },
         }));
 
-      console.log(`[MapView] Created ${points.length} points for clustering`);
+      console.log(`[MapView] Created ${points.length} unique place markers from ${uniquePlaces.length} places (${uniquePlaces.length - points.length} filtered out due to missing coordinates)`);
 
       if (points.length === 0) {
         console.warn('[MapView] No valid points to cluster');
@@ -233,10 +245,16 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
 
         clusterMarkersRef.current.push(marker);
       } else {
-        // Render individual place marker
+        // Render individual place marker - all markers come from places data
         const place = cluster.properties.place as Place;
-        if (!place || !place.latitude || !place.longitude) {
-          console.warn('[MapView] Invalid place in cluster:', place);
+        if (!place || !place.latitude || !place.longitude || !place.id) {
+          console.warn('[MapView] Invalid place in cluster (missing required fields):', place);
+          return;
+        }
+        
+        // Ensure this is a valid place from our places data
+        if (!place.name || !place.slug) {
+          console.warn('[MapView] Place missing name or slug:', place);
           return;
         }
 
@@ -264,10 +282,16 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
             ${place.cuisines && place.cuisines.length > 0 ? `<p class="text-xs text-gray-500 mt-2">${place.cuisines.join(', ')}</p>` : ''}
             <div class="mt-3 flex gap-2">
               <a 
+                href="/place/${place.slug}"
+                class="text-xs bg-neon-green text-black px-3 py-1 rounded font-bold hover:bg-neon-green-dark transition-colors"
+              >
+                View
+              </a>
+              <a 
                 href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${place.name} ${place.address || ''} ${place.city || ''}`)}"
                 target="_blank"
                 rel="noopener noreferrer"
-                class="text-xs bg-neon-green text-black px-3 py-1 rounded font-bold hover:bg-neon-green-dark transition-colors"
+                class="text-xs border border-gray-300 px-3 py-1 rounded hover:bg-gray-100 transition-colors"
               >
                 Directions
               </a>
