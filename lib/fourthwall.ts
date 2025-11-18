@@ -57,6 +57,15 @@ class FourthwallClient {
       this.storefrontToken = process.env.FW_STOREFRONT_TOKEN || '';
       this.shopUrl = process.env.FW_SHOP_URL || '';
       this.collectionSlug = process.env.FW_COLLECTION_SLUG || 'all';
+      
+      // Log configuration on initialization
+      console.log('[FourthwallClient] Initialized with:', {
+        hasShopUrl: !!this.shopUrl,
+        shopUrl: this.shopUrl || 'NOT SET',
+        hasStorefrontToken: !!this.storefrontToken,
+        collectionSlug: this.collectionSlug,
+        envVarSet: process.env.FW_SHOP_URL ? 'YES' : 'NO'
+      });
     } else {
       // Client-side fallback (shouldn't be used)
       this.storefrontToken = '';
@@ -253,20 +262,11 @@ class FourthwallClient {
     featured?: boolean;
   } = {}): Promise<FourthwallProduct[]> {
     try {
-      // Try to get from cache first
-      const cachedProducts = await this.getCachedProducts(options);
-      if (cachedProducts && cachedProducts.length > 0) {
-        console.log(`[FourthwallClient] Returning ${cachedProducts.length} products from cache`);
-        return cachedProducts;
-      }
-
-      // Cache miss or expired, fetch from JSON feed (primary method)
-      console.log('[FourthwallClient] Cache miss, fetching from JSON feed...');
-
-      // Check if shopUrl is available
+      // PRIMARY: Always try JSON feed first (source of truth, same as dankndevour.com)
+      // Cache is only used as a fallback if JSON feed fails
       if (!this.shopUrl) {
         console.warn('[FourthwallClient] shopUrl not configured, cannot fetch from JSON feed');
-        // Try to get stale cache as last resort
+        // If no shopUrl, try stale cache as last resort
         const staleCache = await this.getCachedProducts({ ...options, allowStale: true });
         if (staleCache && staleCache.length > 0) {
           console.log('[FourthwallClient] Returning stale cache (shopUrl missing)');
@@ -275,16 +275,28 @@ class FourthwallClient {
         return [];
       }
 
-      // Primary: Use JSON feed (same as dankndevour.com)
+      // Try JSON feed first (primary source)
+      let jsonFeedProducts: FourthwallProduct[] = [];
+      let jsonFeedSuccess = false;
+      
       try {
-        console.log('[FourthwallClient] Attempting to fetch from JSON feed...');
-        const products = await this.getProductsFromFeed(options);
-        console.log(`[FourthwallClient] JSON feed returned ${products.length} products`);
-        if (products.length > 0) {
-          await this.saveToCache(products, options);
-          return products;
+        console.log('[FourthwallClient] Fetching from JSON feed (primary source)...');
+        jsonFeedProducts = await this.getProductsFromFeed(options);
+        console.log(`[FourthwallClient] JSON feed returned ${jsonFeedProducts.length} products`);
+        
+        if (jsonFeedProducts.length > 0) {
+          // Success! Save to cache for future fallback use
+          try {
+            await this.saveToCache(jsonFeedProducts, options);
+            console.log('[FourthwallClient] Products saved to cache successfully');
+          } catch (cacheError) {
+            console.error('[FourthwallClient] Error saving to cache (non-fatal):', cacheError);
+            // Don't fail if cache save fails, we still have the products
+          }
+          jsonFeedSuccess = true;
+          return jsonFeedProducts;
         } else {
-          console.warn('[FourthwallClient] JSON feed returned 0 products');
+          console.warn('[FourthwallClient] JSON feed returned 0 products - this might indicate an issue with the feed');
         }
       } catch (feedError) {
         console.error('[FourthwallClient] JSON feed failed:', feedError);
@@ -292,17 +304,29 @@ class FourthwallClient {
           console.error('[FourthwallClient] Feed error message:', feedError.message);
           console.error('[FourthwallClient] Feed error stack:', feedError.stack);
         }
+        jsonFeedProducts = [];
+        jsonFeedSuccess = false;
       }
 
-      // Fallback to stale cache if feed fails
+      // FALLBACK: If JSON feed fails or returns 0, try cache (both fresh and stale)
+      console.log('[FourthwallClient] JSON feed unavailable, trying cache as fallback...');
+      
+      // First try fresh cache
+      const cachedProducts = await this.getCachedProducts(options);
+      if (cachedProducts && cachedProducts.length > 0) {
+        console.log(`[FourthwallClient] Returning ${cachedProducts.length} products from fresh cache (fallback)`);
+        return cachedProducts;
+      }
+
+      // Then try stale cache
       const staleCache = await this.getCachedProducts({ ...options, allowStale: true });
       if (staleCache && staleCache.length > 0) {
-        console.log('[FourthwallClient] Returning stale cache after feed failure');
+        console.log(`[FourthwallClient] Returning ${staleCache.length} products from stale cache (fallback)`);
         return staleCache;
       }
 
       // Last resort: return empty array
-      console.warn('[FourthwallClient] All methods failed, returning empty array');
+      console.warn('[FourthwallClient] All methods failed (JSON feed + cache), returning empty array');
       return [];
 
       /* 

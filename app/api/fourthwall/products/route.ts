@@ -15,14 +15,22 @@ export async function GET(request: NextRequest) {
     const featured = searchParams.get('featured') === 'true';
 
     console.log('[Products API] Fetching products with options:', { category, limit, featured });
+    console.log('[Products API] Using JSON feed implementation (not Storefront API)');
+    console.log('[Products API] FW_SHOP_URL env var:', process.env.FW_SHOP_URL ? 'SET' : 'NOT SET');
 
+    const startTime = Date.now();
     const products = await fourthwallClient.getProducts({
       category,
       limit,
       featured,
     });
+    const fetchTime = Date.now() - startTime;
 
-    console.log('[Products API] Returning products:', products.length);
+    console.log(`[Products API] Fetched ${products.length} products in ${fetchTime}ms`);
+    if (products.length === 0) {
+      console.warn('[Products API] WARNING: No products returned from JSON feed');
+      console.warn('[Products API] Check server logs above for FourthwallClient errors');
+    }
 
     return NextResponse.json({ products }, { status: 200 });
   } catch (error) {

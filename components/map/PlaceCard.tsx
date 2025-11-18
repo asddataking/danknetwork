@@ -11,8 +11,8 @@ interface PlaceCardProps {
 
 export default function PlaceCard({ place, isSelected, onSelect }: PlaceCardProps) {
   const handleClick = (e: React.MouseEvent) => {
-    // If clicking on a link, let it handle navigation
-    if ((e.target as HTMLElement).closest('a')) {
+    // If clicking on a link or button, let it handle navigation
+    if ((e.target as HTMLElement).closest('a, button')) {
       return;
     }
     // Otherwise, navigate to detail page if slug exists
