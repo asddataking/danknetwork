@@ -10,6 +10,7 @@ import TrendingSection from '@/components/TrendingSection';
 import FeedTheCrew from '@/components/FeedTheCrew';
 import FilterChips from '@/components/FilterChips';
 import VideoFeed from '@/components/VideoFeed';
+import NewsletterCTA from '@/components/NewsletterCTA';
 
 export default function HomePage() {
   const [selectedFilter, setSelectedFilter] = useState('all');
@@ -99,6 +100,11 @@ export default function HomePage() {
         {/* Feed the Crew */}
         <div className="mb-12">
           <FeedTheCrew />
+        </div>
+
+        {/* Newsletter CTA */}
+        <div className="mb-12">
+          <NewsletterCTA />
         </div>
 
         {/* Filters */}

@@ -7,8 +7,8 @@ interface CountyFilterProps {
   onChange: (counties: string[]) => void;
 }
 
-// Common Michigan counties - in production, fetch from API
-const MICHIGAN_COUNTIES = [
+// Fallback counties if API fails
+const FALLBACK_COUNTIES = [
   'Wayne', 'Oakland', 'Macomb', 'Kent', 'Genesee', 'Washtenaw', 'Ingham', 'Kalamazoo',
   'Saginaw', 'Muskegon', 'Livingston', 'St. Clair', 'Berrien', 'Calhoun', 'Jackson',
   'Ottawa', 'Monroe', 'Bay', 'Lenawee', 'Allegan', 'Eaton', 'Ionia', 'Van Buren',
@@ -16,6 +16,27 @@ const MICHIGAN_COUNTIES = [
 
 export default function CountyFilter({ selected, onChange }: CountyFilterProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [counties, setCounties] = useState<string[]>(FALLBACK_COUNTIES);
+
+  // Fetch counties from API
+  useEffect(() => {
+    const fetchCounties = async () => {
+      try {
+        const response = await fetch('/api/filter-options');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.counties && data.counties.length > 0) {
+            setCounties(data.counties);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching counties:', error);
+        // Use fallback counties on error
+      }
+    };
+
+    fetchCounties();
+  }, []);
 
   const toggleCounty = (county: string) => {
     if (selected.includes(county)) {
@@ -49,7 +70,7 @@ export default function CountyFilter({ selected, onChange }: CountyFilterProps) 
         {isOpen && (
           <div className="absolute z-10 w-full mt-2 bg-dark-surface border-2 border-neon-green/30 rounded-lg max-h-60 overflow-y-auto">
             <div className="p-2 space-y-1">
-              {MICHIGAN_COUNTIES.map((county) => (
+              {counties.map((county) => (
                 <label
                   key={county}
                   className="flex items-center gap-2 p-2 hover:bg-neon-green/10 rounded cursor-pointer"

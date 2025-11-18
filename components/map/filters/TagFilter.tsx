@@ -22,27 +22,22 @@ export default function TagFilter({ selected, onChange }: TagFilterProps) {
   useEffect(() => {
     const fetchTags = async () => {
       try {
-        // Get a sample of places to extract unique tags
-        const response = await fetch('/api/places?limit=100');
+        const response = await fetch('/api/filter-options');
         if (response.ok) {
           const data = await response.json();
-          const places = data.places || [];
-          
-          // Extract unique tags from all places
-          const allTags = new Set<string>();
-          places.forEach((place: any) => {
-            if (place.tags && Array.isArray(place.tags)) {
-              place.tags.forEach((tag: string) => allTags.add(tag));
-            }
-          });
-          
-          // Combine with default tags and sort
-          const combinedTags = Array.from(new Set([...DEFAULT_TAGS, ...Array.from(allTags)]));
-          setAvailableTags(combinedTags.sort());
+          if (data.tags && data.tags.length > 0) {
+            // Combine with default tags and sort
+            const combinedTags = Array.from(new Set([...DEFAULT_TAGS, ...data.tags]));
+            setAvailableTags(combinedTags.sort());
+          } else {
+            // Use default tags if API returns empty
+            setAvailableTags(DEFAULT_TAGS.sort());
+          }
         }
       } catch (error) {
         console.error('Error fetching tags:', error);
         // Use default tags on error
+        setAvailableTags(DEFAULT_TAGS.sort());
       }
     };
 

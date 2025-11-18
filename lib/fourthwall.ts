@@ -496,11 +496,28 @@ class FourthwallClient {
       console.log('[FourthwallClient] Fetching from JSON feed:', feedUrl);
       console.log('[FourthwallClient] Shop URL configured:', this.shopUrl ? 'Yes' : 'No');
       
-      const response = await fetch(feedUrl, {
-        headers: {
-          'Accept': 'application/json',
-        },
-      });
+      // Add timeout to prevent hanging (15 seconds)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      
+      let response;
+      try {
+        response = await fetch(feedUrl, {
+          headers: {
+            'Accept': 'application/json',
+          },
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          console.error('[FourthwallClient] Feed fetch timeout after 15 seconds');
+          throw new Error('Feed fetch timeout');
+        }
+        console.error('[FourthwallClient] Feed fetch error:', fetchError);
+        throw fetchError;
+      }
       
       if (!response.ok) {
         const errorText = await response.text().catch(() => '');
@@ -509,8 +526,32 @@ class FourthwallClient {
       }
 
       const data = await response.json();
-      console.log('[FourthwallClient] Feed response:', { productCount: data.products?.length || 0 });
-      let products = this.transformProductsFromFeed(data.products || []);
+      console.log('[FourthwallClient] Feed response:', { 
+        productCount: data.products?.length || 0,
+        hasProducts: !!data.products,
+        isArray: Array.isArray(data),
+        dataKeys: Object.keys(data || {}),
+        firstProduct: data.products?.[0] ? {
+          id: data.products[0].id,
+          title: data.products[0].title,
+          handle: data.products[0].handle,
+          hasVariants: !!data.products[0].variants,
+          variantCount: data.products[0].variants?.length || 0,
+          hasImages: !!data.products[0].images,
+          imageCount: data.products[0].images?.length || 0,
+        } : null
+      });
+      
+      // Handle case where data is directly an array (some JSON feeds return array directly)
+      const productsArray = Array.isArray(data) ? data : (data.products || []);
+      console.log('[FourthwallClient] Products array length:', productsArray.length);
+      
+      if (productsArray.length === 0) {
+        console.warn('[FourthwallClient] No products found in JSON feed');
+        return [];
+      }
+      
+      let products = this.transformProductsFromFeed(productsArray);
 
       // Apply filters
       if (options.category) {
@@ -704,26 +745,115 @@ class FourthwallClient {
    * Transform JSON feed products to our format
    */
   private transformProductsFromFeed(products: any[]): FourthwallProduct[] {
-    return products.map((product: any) => ({
-      id: product.id?.toString() || product.handle,
-      title: product.title,
-      handle: product.handle,
-      price: parseFloat(product.variants?.[0]?.price || 0) / 100,
-      compareAtPrice: product.variants?.[0]?.compare_at_price
-        ? parseFloat(product.variants[0].compare_at_price) / 100
-        : undefined,
-      images: product.images?.map((img: any) => img.src || img) || [],
-      available: product.variants?.some((v: any) => v.available) !== false,
-      variants: product.variants?.map((v: any) => ({
-        id: v.id?.toString(),
-        title: v.title || 'Default',
-        price: parseFloat(v.price || 0) / 100,
-        available: v.available !== false,
-      })) || [],
-      checkoutUrl: `${this.shopUrl}/products/${product.handle}`,
-      description: product.body_html,
-      tags: product.tags?.split(',').map((t: string) => t.trim()) || [],
-    }));
+    return products
+      .map((product: any) => {
+        try {
+          // Handle different price formats (cents vs dollars)
+          let price = 0;
+          if (product.variants && product.variants.length > 0) {
+            const variantPrice = product.variants[0].price;
+            // If price is a string or number > 1000, assume it's in cents
+            if (typeof variantPrice === 'string') {
+              price = parseFloat(variantPrice) / 100;
+            } else if (typeof variantPrice === 'number') {
+              price = variantPrice > 1000 ? variantPrice / 100 : variantPrice;
+            }
+          } else if (product.price) {
+            // Some feeds have price directly on product
+            const productPrice = product.price;
+            if (typeof productPrice === 'string') {
+              price = parseFloat(productPrice) / 100;
+            } else if (typeof productPrice === 'number') {
+              price = productPrice > 1000 ? productPrice / 100 : productPrice;
+            }
+          }
+
+          // Handle compare at price
+          let compareAtPrice: number | undefined = undefined;
+          if (product.variants?.[0]?.compare_at_price) {
+            const comparePrice = product.variants[0].compare_at_price;
+            if (typeof comparePrice === 'string') {
+              compareAtPrice = parseFloat(comparePrice) / 100;
+            } else if (typeof comparePrice === 'number') {
+              compareAtPrice = comparePrice > 1000 ? comparePrice / 100 : comparePrice;
+            }
+          }
+
+          // Handle images - can be array of objects with src, or array of strings, or single string
+          let images: string[] = [];
+          if (product.images) {
+            if (Array.isArray(product.images)) {
+              images = product.images.map((img: any) => {
+                if (typeof img === 'string') return img;
+                return img.src || img.url || img;
+              }).filter(Boolean);
+            } else if (typeof product.images === 'string') {
+              images = [product.images];
+            }
+          } else if (product.image) {
+            // Some feeds have single image field
+            images = [typeof product.image === 'string' ? product.image : (product.image.src || product.image.url || '')];
+          }
+
+          // Handle variants
+          const variants = (product.variants || []).map((v: any) => ({
+            id: v.id?.toString() || v.sku || '',
+            title: v.title || v.name || 'Default',
+            price: typeof v.price === 'number' ? (v.price > 1000 ? v.price / 100 : v.price) : parseFloat(v.price || 0) / 100,
+            available: v.available !== false && v.inventory_quantity !== 0,
+          }));
+
+          // Determine availability
+          const available = product.variants?.some((v: any) => v.available !== false && v.inventory_quantity !== 0) !== false;
+
+          // Build checkout URL - use product URL if available, otherwise construct it
+          let checkoutUrl = '';
+          if (product.url) {
+            checkoutUrl = product.url;
+          } else if (product.handle && this.shopUrl) {
+            checkoutUrl = `${this.shopUrl}/products/${product.handle}`;
+          } else if (product.id && this.shopUrl) {
+            checkoutUrl = `${this.shopUrl}/products/${product.id}`;
+          }
+
+          // Handle tags - can be string (comma-separated) or array
+          let tags: string[] = [];
+          if (product.tags) {
+            if (Array.isArray(product.tags)) {
+              tags = product.tags;
+            } else if (typeof product.tags === 'string') {
+              tags = product.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+            }
+          }
+
+          const transformed: FourthwallProduct = {
+            id: product.id?.toString() || product.handle || '',
+            title: product.title || product.name || 'Untitled Product',
+            handle: product.handle || product.id?.toString() || '',
+            price,
+            compareAtPrice,
+            images,
+            available,
+            variants,
+            checkoutUrl,
+            collection: product.collection || product.product_type || undefined,
+            description: product.body_html || product.description || product.body || '',
+            tags,
+          };
+
+          // Validate required fields
+          if (!transformed.id || !transformed.title) {
+            console.warn('[FourthwallClient] Skipping product with missing id or title:', product);
+            return null;
+          }
+
+          return transformed;
+        } catch (error) {
+          console.error('[FourthwallClient] Error transforming product:', error, product);
+          return null;
+        }
+      })
+      .filter((p): p is FourthwallProduct => p !== null);
   }
 
   /**
