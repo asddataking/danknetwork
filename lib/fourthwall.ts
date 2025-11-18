@@ -73,6 +73,7 @@ class FourthwallClient {
     category?: string;
     limit?: number;
     featured?: boolean;
+    allowStale?: boolean;
   }): Promise<FourthwallProduct[] | null> {
     try {
       const client = getSupabaseClient();
@@ -80,13 +81,17 @@ class FourthwallClient {
         return null;
       }
 
-      // Get all non-expired products from cache
+      // Get all non-expired products from cache (or stale if allowStale is true)
       const now = new Date().toISOString();
-      console.log('[FourthwallClient] Checking cache for products, expires_at >', now);
+      console.log('[FourthwallClient] Checking cache for products, expires_at >', now, 'allowStale:', options.allowStale);
       let query = client
         .from('products_cache')
-        .select('product_id, name, description, price, image_url, checkout_url, raw_data, expires_at, category, in_stock')
-        .gt('expires_at', now);
+        .select('product_id, name, description, price, image_url, checkout_url, raw_data, expires_at, category, in_stock');
+      
+      // Only filter by expiration if not allowing stale data
+      if (!options.allowStale) {
+        query = query.gt('expires_at', now);
+      }
 
       // Filter by category if specified
       if (options.category) {
@@ -262,13 +267,26 @@ class FourthwallClient {
         console.warn('[FourthwallClient] Fourthwall credentials missing:', {
           hasToken: !!this.storefrontToken,
           hasShopUrl: !!this.shopUrl,
+          tokenLength: this.storefrontToken?.length || 0,
+          shopUrlValue: this.shopUrl || 'NOT SET',
         });
         console.warn('[FourthwallClient] Falling back to JSON feed');
-        const products = await this.getProductsFromFeed(options);
-        if (products.length > 0) {
-          await this.saveToCache(products, options);
+        try {
+          const products = await this.getProductsFromFeed(options);
+          if (products.length > 0) {
+            await this.saveToCache(products, options);
+            return products;
+          }
+        } catch (feedError) {
+          console.error('[FourthwallClient] JSON feed also failed:', feedError);
         }
-        return products;
+        // Try to get stale cache as last resort
+        const staleCache = await this.getCachedProducts({ ...options, allowStale: true });
+        if (staleCache && staleCache.length > 0) {
+          console.log('[FourthwallClient] Returning stale cache (credentials missing)');
+          return staleCache;
+        }
+        return [];
       }
 
       // Build Storefront API URL
@@ -289,71 +307,148 @@ class FourthwallClient {
       const url = params.toString() ? `${storefrontUrl}?${params.toString()}` : storefrontUrl;
       console.log('[FourthwallClient] Fetching from Storefront API:', url);
       
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${this.storefrontToken}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => '');
-        console.error(`[FourthwallClient] Storefront API error: ${response.status} ${response.statusText}`, errorText);
-        // Fallback to public JSON feed
-        return await this.getProductsFromFeed(options);
-      }
-
-      const data = await response.json();
-      console.log('[FourthwallClient] Storefront API response:', { 
-        hasProducts: !!data.products, 
-        isArray: Array.isArray(data),
-        productCount: data.products?.length || (Array.isArray(data) ? data.length : 0)
-      });
+      // Add timeout to prevent hanging (10 seconds)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
       
-      // Storefront API returns { products: [...] } or just an array
-      const products = data.products || data;
-      
-      if (!Array.isArray(products)) {
-        console.error('[FourthwallClient] API returned invalid format:', { 
-          type: typeof products, 
-          keys: typeof products === 'object' ? Object.keys(products) : 'N/A',
-          data 
+      let response;
+      try {
+        response = await fetch(url, {
+          headers: {
+            'Authorization': `Bearer ${this.storefrontToken}`,
+            'Content-Type': 'application/json',
+          },
+          signal: controller.signal,
         });
-        return await this.getProductsFromFeed(options);
+        
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => '');
+          console.error(`[FourthwallClient] Storefront API error: ${response.status} ${response.statusText}`, errorText);
+          // Try stale cache first
+          const staleCache = await this.getCachedProducts({ ...options, allowStale: true });
+          if (staleCache && staleCache.length > 0) {
+            console.log('[FourthwallClient] Returning stale cache after API error');
+            return staleCache;
+          }
+          // Fallback to public JSON feed
+          try {
+            const products = await this.getProductsFromFeed(options);
+            if (products.length > 0) {
+              await this.saveToCache(products, options);
+              return products;
+            }
+          } catch (feedError) {
+            console.error('[FourthwallClient] Feed fallback failed:', feedError);
+          }
+          // If all else fails, return empty array
+          console.warn('[FourthwallClient] All fallbacks failed, returning empty array');
+          return [];
+        }
+
+        const data = await response.json();
+        console.log('[FourthwallClient] Storefront API response:', { 
+          hasProducts: !!data.products, 
+          isArray: Array.isArray(data),
+          productCount: data.products?.length || (Array.isArray(data) ? data.length : 0)
+        });
+        
+        // Storefront API returns { products: [...] } or just an array
+        const products = data.products || data;
+        
+        if (!Array.isArray(products)) {
+          console.error('[FourthwallClient] API returned invalid format:', { 
+            type: typeof products, 
+            keys: typeof products === 'object' ? Object.keys(products) : 'N/A',
+            data 
+          });
+          // Try stale cache first
+          const staleCache = await this.getCachedProducts({ ...options, allowStale: true });
+          if (staleCache && staleCache.length > 0) {
+            console.log('[FourthwallClient] Returning stale cache after invalid API response');
+            return staleCache;
+          }
+          // Fallback to JSON feed
+          try {
+            const feedProducts = await this.getProductsFromFeed(options);
+            if (feedProducts.length > 0) {
+              await this.saveToCache(feedProducts, options);
+              return feedProducts;
+            }
+          } catch (feedError) {
+            console.error('[FourthwallClient] Feed fallback failed:', feedError);
+          }
+          return [];
+        }
+
+        console.log(`[FourthwallClient] Storefront API returned ${products.length} products`);
+
+        const transformed = this.transformProducts(products);
+        
+        // Apply featured filter if needed
+        let filtered = transformed;
+        if (options.featured) {
+          filtered = transformed.filter(p => 
+            p.tags?.includes('featured') || 
+            p.tags?.includes('Featured') ||
+            p.collection === 'featured'
+          );
+        }
+
+        // Save to cache for next time
+        await this.saveToCache(filtered, options);
+
+        return filtered;
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          console.error('[FourthwallClient] Fetch timeout after 10 seconds');
+        } else {
+          console.error('[FourthwallClient] Fetch error:', fetchError);
+        }
+        // Try stale cache first
+        const staleCache = await this.getCachedProducts({ ...options, allowStale: true });
+        if (staleCache && staleCache.length > 0) {
+          console.log('[FourthwallClient] Returning stale cache after fetch error');
+          return staleCache;
+        }
+        // Fallback to JSON feed
+        try {
+          const products = await this.getProductsFromFeed(options);
+          if (products.length > 0) {
+            await this.saveToCache(products, options);
+            return products;
+          }
+        } catch (feedError) {
+          console.error('[FourthwallClient] Feed fallback failed:', feedError);
+        }
+        return [];
       }
-
-      console.log(`[FourthwallClient] Storefront API returned ${products.length} products`);
-
-      const transformed = this.transformProducts(products);
-      
-      // Apply featured filter if needed
-      let filtered = transformed;
-      if (options.featured) {
-        filtered = transformed.filter(p => 
-          p.tags?.includes('featured') || 
-          p.tags?.includes('Featured') ||
-          p.collection === 'featured'
-        );
-      }
-
-      // Save to cache for next time
-      await this.saveToCache(filtered, options);
-
-      return filtered;
     } catch (error) {
       console.error('[FourthwallClient] Storefront API error:', error);
       
       // On error, try to return cached data even if expired
-      const cachedProducts = await this.getCachedProducts(options);
+      const cachedProducts = await this.getCachedProducts({ ...options, allowStale: true });
       if (cachedProducts && cachedProducts.length > 0) {
         console.log('[FourthwallClient] API failed, returning stale cache');
         return cachedProducts;
       }
       
       // Fallback to public JSON feed
-      const products = await this.getProductsFromFeed(options);
-      await this.saveToCache(products, options);
-      return products;
+      try {
+        const products = await this.getProductsFromFeed(options);
+        if (products.length > 0) {
+          await this.saveToCache(products, options);
+          return products;
+        }
+      } catch (feedError) {
+        console.error('[FourthwallClient] Feed fallback also failed:', feedError);
+      }
+      
+      // Last resort: return empty array
+      console.warn('[FourthwallClient] All methods failed, returning empty array');
+      return [];
     }
   }
 
