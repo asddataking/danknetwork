@@ -277,13 +277,21 @@ class FourthwallClient {
 
       // Primary: Use JSON feed (same as dankndevour.com)
       try {
+        console.log('[FourthwallClient] Attempting to fetch from JSON feed...');
         const products = await this.getProductsFromFeed(options);
+        console.log(`[FourthwallClient] JSON feed returned ${products.length} products`);
         if (products.length > 0) {
           await this.saveToCache(products, options);
           return products;
+        } else {
+          console.warn('[FourthwallClient] JSON feed returned 0 products');
         }
       } catch (feedError) {
         console.error('[FourthwallClient] JSON feed failed:', feedError);
+        if (feedError instanceof Error) {
+          console.error('[FourthwallClient] Feed error message:', feedError.message);
+          console.error('[FourthwallClient] Feed error stack:', feedError.stack);
+        }
       }
 
       // Fallback to stale cache if feed fails
@@ -495,6 +503,8 @@ class FourthwallClient {
       const feedUrl = `${cleanShopUrl}/products.json`;
       console.log('[FourthwallClient] Fetching from JSON feed:', feedUrl);
       console.log('[FourthwallClient] Shop URL configured:', this.shopUrl ? 'Yes' : 'No');
+      console.log('[FourthwallClient] Shop URL value:', this.shopUrl || 'NOT SET');
+      console.log('[FourthwallClient] FW_SHOP_URL env var:', process.env.FW_SHOP_URL ? 'SET' : 'NOT SET');
       
       // Add timeout to prevent hanging (15 seconds)
       const controller = new AbortController();

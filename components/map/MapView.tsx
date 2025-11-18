@@ -210,48 +210,61 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
       'top-right'
     );
 
-    // Handle map load
+    // Handle map load - initialize markers immediately
     map.current.on('load', () => {
       console.log('[MapView] Map loaded successfully');
       setLoading(false);
-      // Trigger marker initialization after map is loaded
-      if (places.length > 0) {
-        setTimeout(() => {
-          const initializeMarkers = () => {
-            if (!map.current || !map.current.loaded()) return;
-            if (places.length === 0) return;
-            
-            const uniquePlaces = Array.from(
-              new Map(places.map(p => [p.id, p])).values()
-            );
-            
-            const points = uniquePlaces
-              .filter((p) => p.latitude && p.longitude)
-              .map((place) => ({
-                type: 'Feature' as const,
-                properties: { place },
-                geometry: {
-                  type: 'Point' as const,
-                  coordinates: [place.longitude, place.latitude],
-                },
-              }));
+      
+      // Initialize markers immediately after map loads
+      const initializeMarkers = () => {
+        if (!map.current || !map.current.loaded()) {
+          console.warn('[MapView] Map not ready for marker initialization');
+          return;
+        }
+        
+        if (places.length === 0) {
+          console.log('[MapView] No places available yet, will initialize when places arrive');
+          return;
+        }
+        
+        console.log(`[MapView] Initializing markers for ${places.length} places immediately after map load`);
+        
+        const uniquePlaces = Array.from(
+          new Map(places.map(p => [p.id, p])).values()
+        );
+        
+        const points = uniquePlaces
+          .filter((p) => p.latitude && p.longitude)
+          .map((place) => ({
+            type: 'Feature' as const,
+            properties: { place },
+            geometry: {
+              type: 'Point' as const,
+              coordinates: [place.longitude, place.latitude],
+            },
+          }));
 
-            if (points.length === 0) return;
+        if (points.length === 0) {
+          console.warn('[MapView] No valid points to cluster');
+          return;
+        }
 
-            clusterRef.current = new Supercluster({
-              radius: 50,
-              maxZoom: 16,
-              minZoom: 0,
-            });
+        clusterRef.current = new Supercluster({
+          radius: 50,
+          maxZoom: 16,
+          minZoom: 0,
+        });
 
-            clusterRef.current.load(points);
-            if (updateMarkersRef.current) {
-              updateMarkersRef.current();
-            }
-          };
-          initializeMarkers();
-        }, 100);
-      }
+        clusterRef.current.load(points);
+        console.log(`[MapView] Cluster loaded with ${points.length} points, updating markers`);
+        
+        if (updateMarkersRef.current) {
+          updateMarkersRef.current();
+        }
+      };
+      
+      // Initialize immediately (no setTimeout delay)
+      initializeMarkers();
     });
 
     // Handle errors
@@ -283,7 +296,7 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Initialize clustering and markers
+  // Initialize clustering and markers when places change (after map is loaded)
   useEffect(() => {
     const initializeMarkers = () => {
       if (!map.current) {
@@ -292,13 +305,7 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
       }
 
       if (!map.current.loaded()) {
-        console.log('[MapView] Map not loaded yet, will retry...');
-        // Retry after a short delay
-        setTimeout(() => {
-          if (map.current && map.current.loaded()) {
-            initializeMarkers();
-          }
-        }, 200);
+        console.log('[MapView] Map not loaded yet, will initialize when map loads');
         return;
       }
 
@@ -307,7 +314,7 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
         return;
       }
 
-      console.log(`[MapView] Initializing markers for ${places.length} places from places data`);
+      console.log(`[MapView] Places changed - initializing markers for ${places.length} places`);
       
       // Filter to ensure we only use places with valid coordinates
       // Remove duplicates by place ID to prevent duplicate markers
@@ -352,12 +359,12 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
       }
     };
 
-    // Only initialize if map is already loaded, otherwise wait for 'load' event
+    // Only initialize if map is already loaded
     if (map.current && map.current.loaded()) {
       initializeMarkers();
     } else {
-      // Map will trigger initialization on 'load' event
-      console.log('[MapView] Waiting for map to load before initializing markers');
+      // Map will trigger initialization on 'load' event (handled in map.on('load'))
+      console.log('[MapView] Map not loaded yet, markers will initialize when map loads');
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -18,7 +18,7 @@ export default function MapContainer() {
   const [filters, setFilters] = useState<any>({});
   const [loading, setLoading] = useState(true);
 
-  // Fetch places on mount and when filters change
+  // Fetch places immediately on mount (before map loads) and when filters change
   useEffect(() => {
     const fetchPlaces = async () => {
       setLoading(true);
@@ -37,11 +37,15 @@ export default function MapContainer() {
         const apiUrl = `/api/places?${params.toString()}`;
         console.log(`[MapContainer] Fetching places from: ${apiUrl}`);
         
+        const startTime = Date.now();
         const response = await fetch(apiUrl);
+        const fetchTime = Date.now() - startTime;
+        console.log(`[MapContainer] Places fetch took ${fetchTime}ms`);
+        
         if (response.ok) {
           const data = await response.json();
           const fetchedPlaces = data.places || [];
-          console.log(`[MapContainer] Fetched ${fetchedPlaces.length} places`, fetchedPlaces);
+          console.log(`[MapContainer] Fetched ${fetchedPlaces.length} places in ${fetchTime}ms`, fetchedPlaces);
           
           // Verify places have coordinates
           const placesWithCoords = fetchedPlaces.filter((p: Place) => p.latitude && p.longitude);
@@ -68,6 +72,7 @@ export default function MapContainer() {
       }
     };
 
+    // Fetch immediately on mount
     fetchPlaces();
   }, [filters]);
 
