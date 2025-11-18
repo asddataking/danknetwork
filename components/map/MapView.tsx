@@ -64,6 +64,28 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
 
     mapStyleRef.current = mapStyle;
 
+    // Validate Mapbox token can access styles before initializing map
+    if (mapboxToken && !maptilerKey) {
+      const testStyleUrl = `https://api.mapbox.com/styles/v1/mapbox/streets-v12/style.json?access_token=${mapboxToken}`;
+      fetch(testStyleUrl, { method: 'HEAD' })
+        .then((response) => {
+          if (!response.ok) {
+            console.error('[MapView] ❌ Mapbox token validation failed:', response.status, response.statusText);
+            console.error('[MapView] The token cannot access Mapbox styles. Please check:');
+            console.error('[MapView] 1. Go to https://account.mapbox.com/access-tokens/');
+            console.error('[MapView] 2. Ensure your token has "styles:read" scope enabled');
+            console.error('[MapView] 3. If using URL restrictions, add "*.vercel.app" and your production domain');
+            console.error('[MapView] 4. Mapbox styles require a paid account - ensure your account has access');
+            console.error('[MapView] 5. Try creating a new token with all public scopes enabled');
+          } else {
+            console.log('[MapView] ✓ Mapbox token validated - can access styles');
+          }
+        })
+        .catch((error) => {
+          console.error('[MapView] Error validating Mapbox token:', error);
+        });
+    }
+
     // For Mapbox styles with MapLibre GL, we need to add the token to all Mapbox requests
     // This includes tiles, sprites, glyphs, and other resources
     // MapLibre GL doesn't have mapboxgl.accessToken like Mapbox GL JS, so we use transformRequest
@@ -119,15 +141,25 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
     map.current.on('error', (e: any) => {
       console.error('[MapView] Map error:', e);
       if (e.error?.status === 404) {
-        console.error('[MapView] 404 error - Mapbox style not accessible');
-        console.error('[MapView] Solution: Create a NEW public token in Dank Network account');
-        console.error('1. Go to Dank Network Mapbox account → Access Tokens');
-        console.error('2. Create a NEW public token (don\'t refresh the existing one)');
-        console.error('3. Set URL restrictions to include "*.vercel.app" and your production domain');
-        console.error('4. Update NEXT_PUBLIC_MAPBOX_TOKEN in Vercel with the new token');
-        console.error('5. This keeps dankndevour working with its token, and Dank Network has its own');
+        console.error('[MapView] ❌ 404 error - Mapbox style not accessible');
+        console.error('[MapView] This usually means:');
+        console.error('[MapView] 1. Token missing "styles:read" scope - go to https://account.mapbox.com/access-tokens/');
+        console.error('[MapView] 2. Account needs paid plan for Mapbox styles');
+        console.error('[MapView] 3. URL restrictions blocking the request');
+        console.error('[MapView] 4. Token is invalid or expired');
+        console.error('[MapView]');
+        console.error('[MapView] Solution:');
+        console.error('[MapView] 1. Go to https://account.mapbox.com/access-tokens/');
+        console.error('[MapView] 2. Edit your token and ensure "styles:read" scope is enabled');
+        console.error('[MapView] 3. If using URL restrictions, add "*.vercel.app" and your production domain');
+        console.error('[MapView] 4. Ensure your Mapbox account has access to styles (may require paid plan)');
+        console.error('[MapView] 5. Update NEXT_PUBLIC_MAPBOX_TOKEN in Vercel if you created a new token');
         // Don't set loading to false - let map continue trying
         // MapLibre may retry or use cached style
+      } else if (e.error?.status === 401) {
+        console.error('[MapView] ❌ 401 error - Mapbox token is unauthorized');
+        console.error('[MapView] The token is invalid, expired, or missing required scopes');
+        console.error('[MapView] Go to https://account.mapbox.com/access-tokens/ to check your token');
       }
     });
 
