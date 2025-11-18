@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import maplibregl from 'maplibre-gl';
+import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
 import { Place } from '@/types/place';
 
 interface MunchieMapProps {
@@ -11,8 +12,8 @@ interface MunchieMapProps {
 
 export default function MunchieMap({ initialPlaces = [], filters = {} }: MunchieMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<maplibregl.Map | null>(null);
-  const markersRef = useRef<maplibregl.Marker[]>([]);
+  const map = useRef<mapboxgl.Map | null>(null);
+  const markersRef = useRef<mapboxgl.Marker[]>([]);
   const [places, setPlaces] = useState<Place[]>(initialPlaces);
   const [loading, setLoading] = useState(true);
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
@@ -20,47 +21,31 @@ export default function MunchieMap({ initialPlaces = [], filters = {} }: Munchie
   useEffect(() => {
     if (!mapContainer.current) return;
 
-    const maptilerKey = process.env.NEXT_PUBLIC_MAPTILER_KEY || '';
     const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '';
 
-    // Initialize map with MapTiler or Mapbox
-    const mapStyle = maptilerKey
-      ? `https://api.maptiler.com/maps/streets-v2/style.json?key=${maptilerKey}`
-      : mapboxToken
-      ? `https://api.mapbox.com/styles/v1/mapbox/streets-v12/style.json?access_token=${mapboxToken}`
-      : {
-          version: 8,
-          sources: {
-            'raster-tiles': {
-              type: 'raster',
-              tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-              tileSize: 256,
-            },
-          },
-          layers: [
-            {
-              id: 'simple-tiles',
-              type: 'raster',
-              source: 'raster-tiles',
-              minzoom: 0,
-              maxzoom: 22,
-            },
-          ],
-        };
+    if (!mapboxToken) {
+      console.error('[MunchieMap] No Mapbox token configured. Please set NEXT_PUBLIC_MAPBOX_TOKEN');
+      setLoading(false);
+      return;
+    }
 
-    map.current = new maplibregl.Map({
+    // Set Mapbox access token (required for Mapbox GL JS)
+    mapboxgl.accessToken = mapboxToken;
+
+    // Initialize map with Mapbox style
+    map.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style: mapStyle as any,
+      style: 'mapbox://styles/mapbox/streets-v12', // Use Mapbox Streets style
       center: [-84.5467, 44.3148], // Center of Michigan
       zoom: 6,
     });
 
     // Add navigation controls
-    map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
+    map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
     // Add geolocate control
     map.current.addControl(
-      new maplibregl.GeolocateControl({
+      new mapboxgl.GeolocateControl({
         positionOptions: {
           enableHighAccuracy: true,
         },
@@ -83,7 +68,9 @@ export default function MunchieMap({ initialPlaces = [], filters = {} }: Munchie
     map.current.on('moveend', () => {
       if (map.current) {
         const bounds = map.current.getBounds();
-        fetchPlacesInBounds(bounds);
+        if (bounds) {
+          fetchPlacesInBounds(bounds);
+        }
       }
     });
 
@@ -115,7 +102,7 @@ export default function MunchieMap({ initialPlaces = [], filters = {} }: Munchie
     }
   };
 
-  const fetchPlacesInBounds = async (bounds: maplibregl.LngLatBounds) => {
+  const fetchPlacesInBounds = async (bounds: mapboxgl.LngLatBounds) => {
     try {
       const bbox = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`;
       const params = new URLSearchParams();
@@ -159,7 +146,7 @@ export default function MunchieMap({ initialPlaces = [], filters = {} }: Munchie
         ? '0 0 10px rgba(0, 255, 0, 0.8)'
         : '0 0 5px rgba(0, 204, 0, 0.5)';
 
-      const popup = new maplibregl.Popup({ offset: 25, className: 'map-popup' }).setHTML(`
+      const popup = new mapboxgl.Popup({ offset: 25, className: 'map-popup' }).setHTML(`
         <div class="text-black p-3 min-w-[200px]">
           <div class="flex items-start justify-between mb-2">
             <h3 class="font-bold text-lg">${place.name}</h3>
@@ -183,7 +170,7 @@ export default function MunchieMap({ initialPlaces = [], filters = {} }: Munchie
         </div>
       `);
 
-      const marker = new maplibregl.Marker(el)
+      const marker = new mapboxgl.Marker(el)
         .setLngLat([place.longitude, place.latitude])
         .setPopup(popup)
         .addTo(currentMap);
