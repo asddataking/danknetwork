@@ -49,14 +49,7 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
     }
 
     // Initialize map with MapTiler or Mapbox (matching reference implementation exactly)
-    // IMPORTANT: For Mapbox, we need to set the access token globally for MapLibre GL
-    // This is required for MapLibre GL to properly authenticate with Mapbox services
-    if (mapboxToken && !maptilerKey) {
-      // Set Mapbox access token globally for MapLibre GL
-      maplibregl.accessToken = mapboxToken;
-      console.log('[MapView] Set Mapbox access token for MapLibre GL');
-    }
-
+    // For Mapbox, the token is included in the style URL and also needs to be added to tile requests
     const mapStyle = maptilerKey
       ? `https://api.maptiler.com/maps/streets-v2/style.json?key=${maptilerKey}`
       : mapboxToken
@@ -71,11 +64,28 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
 
     mapStyleRef.current = mapStyle;
 
+    // For Mapbox styles with MapLibre GL, we need to add the token to all Mapbox requests
+    // This includes tiles, sprites, glyphs, and other resources
+    // MapLibre GL doesn't have mapboxgl.accessToken like Mapbox GL JS, so we use transformRequest
+    const transformRequest = mapboxToken && !maptilerKey
+      ? (url: string, resourceType: string) => {
+          // Add token to all Mapbox API requests (tiles, sprites, glyphs, etc.)
+          if (url.includes('api.mapbox.com') && !url.includes('access_token=')) {
+            const separator = url.includes('?') ? '&' : '?';
+            return {
+              url: `${url}${separator}access_token=${mapboxToken}`,
+            };
+          }
+          return { url };
+        }
+      : undefined;
+
     map.current = new maplibregl.Map({
       container: mapContainer.current,
       style: mapStyle as any,
       center: [-84.5467, 44.3148],
       zoom: 6,
+      transformRequest,
     });
 
     // Add navigation controls (matching reference exactly)
