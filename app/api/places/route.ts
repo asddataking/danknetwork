@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { PlacesService } from '@/lib/supabase';
-import { PlacesQueryParams } from '@/types/place';
+import { PlacesQueryParams, Place } from '@/types/place';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -32,7 +32,7 @@ export async function GET(request: Request) {
     const featured = searchParams.get('featured') === 'true' ? true : searchParams.get('featured') === 'false' ? false : undefined;
     const verified = searchParams.get('verified') === 'true' ? true : searchParams.get('verified') === 'false' ? false : undefined;
 
-    let places;
+    let places: Place[] = [];
 
     // Use direct Supabase queries for faster response (skip edge function)
     // This ensures places are available immediately when map loads
