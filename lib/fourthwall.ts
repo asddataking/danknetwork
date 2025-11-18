@@ -242,8 +242,9 @@ class FourthwallClient {
   }
 
   /**
-   * Fetch products from Fourthwall Storefront API
-   * Storefront API endpoint: https://[shop].fourthwall.com/api/storefront/products
+   * Fetch products from Fourthwall
+   * Currently using JSON feed as primary source (same as dankndevour.com)
+   * Storefront API code is kept but disabled for future use
    * Uses Supabase cache to avoid hitting API too frequently (1 hour cache)
    */
   async getProducts(options: {
@@ -259,36 +260,47 @@ class FourthwallClient {
         return cachedProducts;
       }
 
-      // Cache miss or expired, fetch from Fourthwall
-      console.log('[FourthwallClient] Cache miss, fetching from Fourthwall API...');
+      // Cache miss or expired, fetch from JSON feed (primary method)
+      console.log('[FourthwallClient] Cache miss, fetching from JSON feed...');
 
-      // Check if we have required credentials
-      if (!this.storefrontToken || !this.shopUrl) {
-        console.warn('[FourthwallClient] Fourthwall credentials missing:', {
-          hasToken: !!this.storefrontToken,
-          hasShopUrl: !!this.shopUrl,
-          tokenLength: this.storefrontToken?.length || 0,
-          shopUrlValue: this.shopUrl || 'NOT SET',
-        });
-        console.warn('[FourthwallClient] Falling back to JSON feed');
-        try {
-          const products = await this.getProductsFromFeed(options);
-          if (products.length > 0) {
-            await this.saveToCache(products, options);
-            return products;
-          }
-        } catch (feedError) {
-          console.error('[FourthwallClient] JSON feed also failed:', feedError);
-        }
+      // Check if shopUrl is available
+      if (!this.shopUrl) {
+        console.warn('[FourthwallClient] shopUrl not configured, cannot fetch from JSON feed');
         // Try to get stale cache as last resort
         const staleCache = await this.getCachedProducts({ ...options, allowStale: true });
         if (staleCache && staleCache.length > 0) {
-          console.log('[FourthwallClient] Returning stale cache (credentials missing)');
+          console.log('[FourthwallClient] Returning stale cache (shopUrl missing)');
           return staleCache;
         }
         return [];
       }
 
+      // Primary: Use JSON feed (same as dankndevour.com)
+      try {
+        const products = await this.getProductsFromFeed(options);
+        if (products.length > 0) {
+          await this.saveToCache(products, options);
+          return products;
+        }
+      } catch (feedError) {
+        console.error('[FourthwallClient] JSON feed failed:', feedError);
+      }
+
+      // Fallback to stale cache if feed fails
+      const staleCache = await this.getCachedProducts({ ...options, allowStale: true });
+      if (staleCache && staleCache.length > 0) {
+        console.log('[FourthwallClient] Returning stale cache after feed failure');
+        return staleCache;
+      }
+
+      // Last resort: return empty array
+      console.warn('[FourthwallClient] All methods failed, returning empty array');
+      return [];
+
+      /* 
+      // STOREFRONT API CODE - DISABLED FOR NOW
+      // Uncomment below to use Storefront API instead of JSON feed
+      
       // Build Storefront API URL
       // Format: https://[shop].fourthwall.com/api/storefront/products
       const storefrontUrl = `${this.shopUrl}/api/storefront/products`;
@@ -326,25 +338,8 @@ class FourthwallClient {
         if (!response.ok) {
           const errorText = await response.text().catch(() => '');
           console.error(`[FourthwallClient] Storefront API error: ${response.status} ${response.statusText}`, errorText);
-          // Try stale cache first
-          const staleCache = await this.getCachedProducts({ ...options, allowStale: true });
-          if (staleCache && staleCache.length > 0) {
-            console.log('[FourthwallClient] Returning stale cache after API error');
-            return staleCache;
-          }
-          // Fallback to public JSON feed
-          try {
-            const products = await this.getProductsFromFeed(options);
-            if (products.length > 0) {
-              await this.saveToCache(products, options);
-              return products;
-            }
-          } catch (feedError) {
-            console.error('[FourthwallClient] Feed fallback failed:', feedError);
-          }
-          // If all else fails, return empty array
-          console.warn('[FourthwallClient] All fallbacks failed, returning empty array');
-          return [];
+          // Fallback to JSON feed
+          return await this.getProductsFromFeed(options);
         }
 
         const data = await response.json();
@@ -358,28 +353,8 @@ class FourthwallClient {
         const products = data.products || data;
         
         if (!Array.isArray(products)) {
-          console.error('[FourthwallClient] API returned invalid format:', { 
-            type: typeof products, 
-            keys: typeof products === 'object' ? Object.keys(products) : 'N/A',
-            data 
-          });
-          // Try stale cache first
-          const staleCache = await this.getCachedProducts({ ...options, allowStale: true });
-          if (staleCache && staleCache.length > 0) {
-            console.log('[FourthwallClient] Returning stale cache after invalid API response');
-            return staleCache;
-          }
-          // Fallback to JSON feed
-          try {
-            const feedProducts = await this.getProductsFromFeed(options);
-            if (feedProducts.length > 0) {
-              await this.saveToCache(feedProducts, options);
-              return feedProducts;
-            }
-          } catch (feedError) {
-            console.error('[FourthwallClient] Feed fallback failed:', feedError);
-          }
-          return [];
+          console.error('[FourthwallClient] API returned invalid format');
+          return await this.getProductsFromFeed(options);
         }
 
         console.log(`[FourthwallClient] Storefront API returned ${products.length} products`);
@@ -407,43 +382,18 @@ class FourthwallClient {
         } else {
           console.error('[FourthwallClient] Fetch error:', fetchError);
         }
-        // Try stale cache first
-        const staleCache = await this.getCachedProducts({ ...options, allowStale: true });
-        if (staleCache && staleCache.length > 0) {
-          console.log('[FourthwallClient] Returning stale cache after fetch error');
-          return staleCache;
-        }
         // Fallback to JSON feed
-        try {
-          const products = await this.getProductsFromFeed(options);
-          if (products.length > 0) {
-            await this.saveToCache(products, options);
-            return products;
-          }
-        } catch (feedError) {
-          console.error('[FourthwallClient] Feed fallback failed:', feedError);
-        }
-        return [];
+        return await this.getProductsFromFeed(options);
       }
+      */
     } catch (error) {
-      console.error('[FourthwallClient] Storefront API error:', error);
+      console.error('[FourthwallClient] Error fetching products:', error);
       
       // On error, try to return cached data even if expired
       const cachedProducts = await this.getCachedProducts({ ...options, allowStale: true });
       if (cachedProducts && cachedProducts.length > 0) {
-        console.log('[FourthwallClient] API failed, returning stale cache');
+        console.log('[FourthwallClient] Error occurred, returning stale cache');
         return cachedProducts;
-      }
-      
-      // Fallback to public JSON feed
-      try {
-        const products = await this.getProductsFromFeed(options);
-        if (products.length > 0) {
-          await this.saveToCache(products, options);
-          return products;
-        }
-      } catch (feedError) {
-        console.error('[FourthwallClient] Feed fallback also failed:', feedError);
       }
       
       // Last resort: return empty array

@@ -49,6 +49,14 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
     }
 
     // Initialize map with MapTiler or Mapbox (matching reference implementation exactly)
+    // IMPORTANT: For Mapbox, we need to set the access token globally for MapLibre GL
+    // This is required for MapLibre GL to properly authenticate with Mapbox services
+    if (mapboxToken && !maptilerKey) {
+      // Set Mapbox access token globally for MapLibre GL
+      maplibregl.accessToken = mapboxToken;
+      console.log('[MapView] Set Mapbox access token for MapLibre GL');
+    }
+
     const mapStyle = maptilerKey
       ? `https://api.maptiler.com/maps/streets-v2/style.json?key=${maptilerKey}`
       : mapboxToken
