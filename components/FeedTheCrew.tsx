@@ -1,16 +1,37 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function FeedTheCrew() {
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState<string>('');
+  const [donor, setDonor] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [shopUrl, setShopUrl] = useState('');
 
   const presetAmounts = [1, 5, 20];
 
-  const handleDonate = async () => {
+  // Fetch shop URL from API
+  useEffect(() => {
+    const fetchShopUrl = async () => {
+      try {
+        const response = await fetch('/api/fourthwall/shop-url');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.shopUrl) {
+            setShopUrl(data.shopUrl);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching shop URL:', error);
+      }
+    };
+
+    fetchShopUrl();
+  }, []);
+
+  const handleDonate = () => {
     const amount = selectedAmount || parseFloat(customAmount);
     
     if (!amount || amount <= 0) {
@@ -18,34 +39,58 @@ export default function FeedTheCrew() {
       return;
     }
 
+    if (!shopUrl) {
+      alert('Shop URL not configured. Please try again later.');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const response = await fetch('/api/fourthwall/checkout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          amount,
-          message: message.trim() || undefined,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.error) {
-        alert(`Error: ${data.error}`);
-        setLoading(false);
-        return;
-      }
-
-      if (data.checkoutUrl) {
-        window.location.href = data.checkoutUrl;
+      // Build the Fourthwall donation URL with all parameters
+      const params = new URLSearchParams();
+      
+      // Donor name (optional)
+      if (donor.trim()) {
+        params.append('donor', donor.trim());
       } else {
-        alert('Failed to create checkout. Please try again.');
-        setLoading(false);
+        params.append('donor', '');
       }
+      
+      // Message (optional)
+      if (message.trim()) {
+        params.append('message', message.trim());
+      } else {
+        params.append('message', '');
+      }
+      
+      // Preset donation options (always include all presets)
+      presetAmounts.forEach((preset) => {
+        params.append('donationOpts[]', preset.toFixed(2));
+      });
+      
+      // Amount selection
+      if (selectedAmount) {
+        // Using preset amount
+        params.append('amount-radio', selectedAmount.toFixed(2));
+        params.append('amount-custom', '');
+      } else if (customAmount) {
+        // Using custom amount
+        params.append('amount-radio', '');
+        params.append('amount-custom', parseFloat(customAmount).toFixed(2));
+      }
+      
+      // Actual amount
+      params.append('amount', amount.toString());
+      
+      // Currency
+      params.append('currency', 'USD');
+      
+      // Build the full donation URL
+      const donationUrl = `${shopUrl}/donation/?${params.toString()}`;
+      
+      // Redirect to Fourthwall donation checkout
+      window.location.href = donationUrl;
     } catch (error) {
       console.error('Donation error:', error);
       alert('Something went wrong. Please try again.');
@@ -100,6 +145,19 @@ export default function FeedTheCrew() {
             className="flex-1 bg-gray-900 border-2 border-gray-700 rounded-lg px-4 py-3 text-white font-semibold focus:outline-none focus:border-neon-green transition-colors"
           />
         </div>
+      </div>
+
+      {/* Donor Name Input (Optional) */}
+      <div className="mb-6">
+        <label className="block text-white font-semibold mb-2">Your Name (Optional)</label>
+        <input
+          type="text"
+          value={donor}
+          onChange={(e) => setDonor(e.target.value)}
+          placeholder="Enter your name"
+          maxLength={100}
+          className="w-full bg-gray-900 border-2 border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-neon-green transition-colors"
+        />
       </div>
 
       {/* Message Input */}
