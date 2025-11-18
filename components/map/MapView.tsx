@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import maplibregl, { type RequestTransformFunction, type RequestParameters, type ResourceType } from 'maplibre-gl';
+import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
 import Supercluster from 'supercluster';
 import { Place } from '@/types/place';
 
@@ -13,67 +14,40 @@ interface MapViewProps {
 
 export default function MapView({ places, selectedPlace, onPlaceSelect }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<maplibregl.Map | null>(null);
-  const markersRef = useRef<maplibregl.Marker[]>([]);
-  const clusterMarkersRef = useRef<maplibregl.Marker[]>([]);
+  const map = useRef<mapboxgl.Map | null>(null);
+  const markersRef = useRef<mapboxgl.Marker[]>([]);
+  const clusterMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const clusterRef = useRef<Supercluster | null>(null);
-  const mapStyleRef = useRef<string>('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!mapContainer.current) return;
 
-    const maptilerKey = process.env.NEXT_PUBLIC_MAPTILER_KEY || '';
     const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '';
 
-
-    // Initialize map with MapTiler or Mapbox (matching reference implementation exactly)
-    // For Mapbox, the token is included in the style URL and also needs to be added to tile requests
-    const mapStyle = maptilerKey
-      ? `https://api.maptiler.com/maps/streets-v2/style.json?key=${maptilerKey}`
-      : mapboxToken
-      ? `https://api.mapbox.com/styles/v1/mapbox/streets-v12/style.json?access_token=${mapboxToken}`
-      : null;
-
-    if (!mapStyle) {
-      console.error('[MapView] No map provider configured. Please set NEXT_PUBLIC_MAPTILER_KEY or NEXT_PUBLIC_MAPBOX_TOKEN');
+    if (!mapboxToken) {
+      console.error('[MapView] No Mapbox token configured. Please set NEXT_PUBLIC_MAPBOX_TOKEN');
       setLoading(false);
       return;
     }
 
-    mapStyleRef.current = mapStyle;
+    // Set Mapbox access token (required for Mapbox GL JS)
+    mapboxgl.accessToken = mapboxToken;
 
-    // For Mapbox styles with MapLibre GL, we need to add the token to all Mapbox requests
-    // This includes tiles, sprites, glyphs, and other resources
-    // MapLibre GL doesn't have mapboxgl.accessToken like Mapbox GL JS, so we use transformRequest
-    // According to MapLibre GL JS docs: RequestTransformFunction = (url: string, resourceType?: ResourceType) => RequestParameters | undefined
-    const transformRequest: RequestTransformFunction | undefined = mapboxToken && !maptilerKey
-      ? (url: string, resourceType?: ResourceType): RequestParameters | undefined => {
-          // Add token to all Mapbox API requests (tiles, sprites, glyphs, etc.)
-          if (url.includes('api.mapbox.com') && !url.includes('access_token=')) {
-            const separator = url.includes('?') ? '&' : '?';
-            return {
-              url: `${url}${separator}access_token=${mapboxToken}`,
-            };
-          }
-          return { url };
-        }
-      : undefined;
-
-    map.current = new maplibregl.Map({
+    // Initialize map with Mapbox style (matching Mapbox GL JS documentation)
+    map.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style: mapStyle as any,
-      center: [-84.5467, 44.3148],
+      style: 'mapbox://styles/mapbox/streets-v12', // Use Mapbox Streets style
+      center: [-84.5467, 44.3148], // Center of Michigan
       zoom: 6,
-      transformRequest,
     });
 
-    // Add navigation controls (matching reference exactly)
-    map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
+    // Add navigation controls
+    map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
-    // Add geolocate control (matching reference exactly)
+    // Add geolocate control
     map.current.addControl(
-      new maplibregl.GeolocateControl({
+      new mapboxgl.GeolocateControl({
         positionOptions: {
           enableHighAccuracy: true,
         },
@@ -82,18 +56,16 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
       'top-right'
     );
 
-    // Handle map load (matching reference exactly)
+    // Handle map load
     map.current.on('load', () => {
       console.log('[MapView] Map loaded successfully');
       setLoading(false);
     });
 
-
-    // Handle errors - but don't block map rendering
+    // Handle errors
     map.current.on('error', (e: any) => {
       console.error('[MapView] Map error:', e);
     });
-
 
     map.current.on('moveend', () => {
       if (map.current && map.current.loaded() && clusterRef.current) {
@@ -240,7 +212,7 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
         el.style.zIndex = '1000';
         el.textContent = pointCount.toString();
 
-        const marker = new maplibregl.Marker({ element: el })
+        const marker = new mapboxgl.Marker({ element: el })
           .setLngLat([cluster.geometry.coordinates[0], cluster.geometry.coordinates[1]])
           .addTo(currentMap);
 
@@ -276,7 +248,7 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
           ? '0 0 10px rgba(0, 255, 0, 0.8)'
           : '0 0 5px rgba(0, 204, 0, 0.5)';
 
-        const popup = new maplibregl.Popup({ offset: 25, className: 'map-popup' }).setHTML(`
+        const popup = new mapboxgl.Popup({ offset: 25, className: 'map-popup' }).setHTML(`
           <div class="text-black p-3 min-w-[200px]">
             <div class="flex items-start justify-between mb-2">
               <h3 class="font-bold text-lg">${place.name}</h3>
@@ -300,7 +272,7 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
           </div>
         `);
 
-        const marker = new maplibregl.Marker(el)
+        const marker = new mapboxgl.Marker(el)
           .setLngLat([place.longitude, place.latitude])
           .setPopup(popup)
           .addTo(currentMap);
@@ -345,4 +317,3 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
     </div>
   );
 }
-
