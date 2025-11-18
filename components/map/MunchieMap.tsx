@@ -21,7 +21,7 @@ export default function MunchieMap({ initialPlaces = [], filters = {} }: Munchie
     if (!mapContainer.current) return;
 
     const maptilerKey = process.env.NEXT_PUBLIC_MAPTILER_KEY || '';
-    const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_PUBLIC_TOKEN || '';
+    const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '';
 
     // Initialize map with MapTiler or Mapbox
     const mapStyle = maptilerKey

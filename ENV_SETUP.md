@@ -30,7 +30,7 @@ FW_DONATION_PRODUCT_HANDLE=donation
 ```env
 NEXT_PUBLIC_MAPTILER_KEY=your_maptiler_key
 # OR
-NEXT_PUBLIC_MAPBOX_PUBLIC_TOKEN=your_mapbox_public_token
+NEXT_PUBLIC_MAPBOX_TOKEN=your_mapbox_public_token
 MAPBOX_SECRET_TOKEN=your_mapbox_secret_token
 ```
 

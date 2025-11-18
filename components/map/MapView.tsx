@@ -24,7 +24,7 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
     if (!mapContainer.current) return;
 
     const maptilerKey = process.env.NEXT_PUBLIC_MAPTILER_KEY || '';
-    const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_PUBLIC_TOKEN || '';
+    const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '';
 
     // Debug: Log token info
     if (mapboxToken) {
@@ -38,7 +38,7 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
           const accountName = payload.u || 'unknown';
           console.log('[MapView] Token account:', accountName);
           if (accountName === 'dankndevour') {
-            console.warn('[MapView] ⚠️ Still using dankndevour token - update NEXT_PUBLIC_MAPBOX_PUBLIC_TOKEN in Vercel');
+            console.warn('[MapView] ⚠️ Still using dankndevour token - update NEXT_PUBLIC_MAPBOX_TOKEN in Vercel');
           } else {
             console.log('[MapView] ✓ Using Dank Network token');
           }
@@ -57,7 +57,7 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
       : null;
 
     if (!mapStyle) {
-      console.error('[MapView] No map provider configured. Please set NEXT_PUBLIC_MAPTILER_KEY or NEXT_PUBLIC_MAPBOX_PUBLIC_TOKEN');
+      console.error('[MapView] No map provider configured. Please set NEXT_PUBLIC_MAPTILER_KEY or NEXT_PUBLIC_MAPBOX_TOKEN');
       setLoading(false);
       return;
     }
@@ -124,7 +124,7 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
         console.error('1. Go to Dank Network Mapbox account → Access Tokens');
         console.error('2. Create a NEW public token (don\'t refresh the existing one)');
         console.error('3. Set URL restrictions to include "*.vercel.app" and your production domain');
-        console.error('4. Update NEXT_PUBLIC_MAPBOX_PUBLIC_TOKEN in Vercel with the new token');
+        console.error('4. Update NEXT_PUBLIC_MAPBOX_TOKEN in Vercel with the new token');
         console.error('5. This keeps dankndevour working with its token, and Dank Network has its own');
         // Don't set loading to false - let map continue trying
         // MapLibre may retry or use cached style
