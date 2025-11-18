@@ -22,6 +22,12 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
 
   // Define updateMarkers function that can be called from anywhere
   const updateMarkersRef = useRef<(() => void) | null>(null);
+  
+  // Store places in a ref so we can access current value in event handlers
+  const placesRef = useRef<Place[]>(places);
+  useEffect(() => {
+    placesRef.current = places;
+  }, [places]);
 
   const updateMarkers = () => {
     const currentMap = map.current;
@@ -230,63 +236,22 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
       'top-right'
     );
 
-    // Handle map load - initialize markers if places are available
+    // Handle map load - trigger marker initialization if places are available
     map.current.on('load', () => {
       console.log('[MapView] Map loaded successfully');
       setLoading(false);
       
-      // Try to initialize markers if places are already available
-      if (places.length > 0) {
-        console.log(`[MapView] Places available on map load (${places.length}), initializing markers`);
-        const initializeMarkers = () => {
-          if (!map.current || !map.current.loaded()) {
-            console.warn('[MapView] Map not ready for marker initialization');
-            return;
+      // Check if places are available and trigger initialization directly
+      // Use placesRef to get current value (not closure value)
+      const currentPlaces = placesRef.current;
+      if (currentPlaces.length > 0) {
+        console.log(`[MapView] Map loaded, places available (${currentPlaces.length}) - triggering marker initialization`);
+        // Use a small delay to ensure everything is ready
+        setTimeout(() => {
+          if (initializeMarkersRef.current) {
+            initializeMarkersRef.current();
           }
-          
-          if (places.length === 0) {
-            console.log('[MapView] No places available yet');
-            return;
-          }
-          
-          console.log(`[MapView] Initializing markers for ${places.length} places immediately after map load`);
-          
-          const uniquePlaces = Array.from(
-            new Map(places.map(p => [p.id, p])).values()
-          );
-          
-          const points = uniquePlaces
-            .filter((p) => p.latitude && p.longitude)
-            .map((place) => ({
-              type: 'Feature' as const,
-              properties: { place },
-              geometry: {
-                type: 'Point' as const,
-                coordinates: [place.longitude, place.latitude],
-              },
-            }));
-
-          if (points.length === 0) {
-            console.warn('[MapView] No valid points to cluster');
-            return;
-          }
-
-          clusterRef.current = new Supercluster({
-            radius: 50,
-            maxZoom: 16,
-            minZoom: 0,
-          });
-
-          clusterRef.current.load(points);
-          console.log(`[MapView] Cluster loaded with ${points.length} points, updating markers`);
-          
-          if (updateMarkersRef.current) {
-            updateMarkersRef.current();
-          }
-        };
-        
-        // Initialize immediately (no setTimeout delay)
-        initializeMarkers();
+        }, 50);
       } else {
         console.log('[MapView] Map loaded but no places yet - markers will initialize when places arrive');
       }
@@ -324,9 +289,15 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Shared initialization function that can be called from both useEffect and map.on('load')
+  const initializeMarkersRef = useRef<(() => void) | null>(null);
+  
   // Initialize clustering and markers when places change (after map is loaded)
+  // This is the primary initialization point - it handles both cases:
+  // 1. Places arrive before map loads → waits for map to load
+  // 2. Map loads before places arrive → waits for places to arrive
   useEffect(() => {
-    const initializeMarkers = () => {
+    const doInitializeMarkers = () => {
       if (!map.current) {
         console.log('[MapView] Map instance not available');
         return;
@@ -337,7 +308,10 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
         return;
       }
 
-      if (places.length === 0) {
+      // Use placesRef to get current value (handles race conditions)
+      const currentPlaces = placesRef.current;
+      
+      if (currentPlaces.length === 0) {
         console.log('[MapView] No places to display - clearing markers');
         // Clear markers if no places
         markersRef.current.forEach((m) => {
@@ -360,12 +334,12 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
         return;
       }
 
-      console.log(`[MapView] Places changed (${places.length} places) - initializing/reinitializing cluster`);
+      console.log(`[MapView] Initializing markers for ${currentPlaces.length} places`);
       
       // Filter to ensure we only use places with valid coordinates
       // Remove duplicates by place ID to prevent duplicate markers
       const uniquePlaces = Array.from(
-        new Map(places.map(p => [p.id, p])).values()
+        new Map(currentPlaces.map(p => [p.id, p])).values()
       );
       
       const points = uniquePlaces
@@ -429,13 +403,20 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
       }
     };
 
-    // Only initialize if map is already loaded
-    if (map.current && map.current.loaded()) {
-      console.log('[MapView] Map is loaded, initializing markers from places useEffect');
-      initializeMarkers();
-    } else {
-      // Map will trigger initialization on 'load' event (handled in map.on('load'))
+    // Store reference so map.on('load') can call it
+    initializeMarkersRef.current = doInitializeMarkers;
+
+    // Always try to initialize - this handles both cases:
+    // - If map is loaded and places are available → initialize immediately
+    // - If map not loaded yet → will be triggered by map.on('load') handler
+    // - If places not available yet → will be triggered when places arrive
+    if (map.current && map.current.loaded() && places.length > 0) {
+      console.log(`[MapView] Both map loaded and places available (${places.length}) - initializing markers now`);
+      doInitializeMarkers();
+    } else if (!map.current || !map.current.loaded()) {
       console.log('[MapView] Map not loaded yet, markers will initialize when map loads');
+    } else if (places.length === 0) {
+      console.log('[MapView] Map loaded but no places yet - markers will initialize when places arrive');
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
