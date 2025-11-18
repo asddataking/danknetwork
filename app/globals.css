@@ -78,3 +78,23 @@ body {
   background-color: rgba(0, 0, 0, 0.05) !important;
 }
 
+/* Hover popup styles */
+.map-popup-hover .mapboxgl-popup-content {
+  background: rgba(0, 0, 0, 0.9) !important;
+  color: white !important;
+  border: 2px solid #00ff00 !important;
+  box-shadow: 0 0 15px rgba(0, 255, 0, 0.5) !important;
+}
+
+.map-popup-hover .mapboxgl-popup-content h3 {
+  color: #00ff00 !important;
+}
+
+.map-popup-hover .mapboxgl-popup-content a {
+  color: #00ff00 !important;
+}
+
+.map-popup-hover .mapboxgl-popup-tip {
+  border-top-color: #00ff00 !important;
+}
+

@@ -15,6 +15,7 @@ export default function MapContainer() {
   const [places, setPlaces] = useState<Place[]>([]);
   const [filteredPlaces, setFilteredPlaces] = useState<Place[]>([]);
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
+  const [hoveredPlace, setHoveredPlace] = useState<Place | null>(null);
   const [filters, setFilters] = useState<any>({});
   const [loading, setLoading] = useState(true);
 
@@ -91,6 +92,16 @@ export default function MapContainer() {
     }
   };
 
+  // Scroll to hovered place in list
+  useEffect(() => {
+    if (hoveredPlace && (viewMode === 'split' || viewMode === 'list')) {
+      const element = document.getElementById(`place-${hoveredPlace.id}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [hoveredPlace, viewMode]);
+
   return (
     <div className="flex flex-col h-full bg-black">
       {/* View Toggle */}
@@ -118,6 +129,7 @@ export default function MapContainer() {
                 places={filteredPlaces}
                 selectedPlace={selectedPlace}
                 onPlaceSelect={handlePlaceSelect}
+                onPlaceHover={setHoveredPlace}
               />
             </div>
           )}
@@ -128,6 +140,7 @@ export default function MapContainer() {
               <PlacesList
                 places={filteredPlaces}
                 selectedPlace={selectedPlace}
+                hoveredPlace={hoveredPlace}
                 onPlaceSelect={handlePlaceSelect}
                 loading={loading}
               />

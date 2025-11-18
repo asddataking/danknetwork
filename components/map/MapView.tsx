@@ -9,9 +9,10 @@ interface MapViewProps {
   places: Place[];
   selectedPlace: Place | null;
   onPlaceSelect: (place: Place) => void;
+  onPlaceHover?: (place: Place | null) => void;
 }
 
-export default function MapView({ places, selectedPlace, onPlaceSelect }: MapViewProps) {
+export default function MapView({ places, selectedPlace, onPlaceSelect, onPlaceHover }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
@@ -123,6 +124,44 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
         .addTo(currentMap);
 
       markersRef.current.push(marker);
+
+      // Create hover popup (separate from click popup)
+      const hoverPopup = new mapboxgl.Popup({ 
+        offset: 25, 
+        className: 'map-popup-hover',
+        closeButton: false,
+        closeOnClick: false,
+      }).setHTML(`
+        <div class="p-2 min-w-[150px]">
+          <h3 class="font-bold text-sm mb-1">${place.name}</h3>
+          ${place.slug ? `<a href="/place/${place.slug}" class="text-xs hover:underline">View Details →</a>` : ''}
+        </div>
+      `);
+
+      // Track if we're currently showing hover popup
+      let showingHoverPopup = false;
+
+      // Add hover handlers
+      el.addEventListener('mouseenter', () => {
+        if (onPlaceHover) {
+          onPlaceHover(place);
+        }
+        // Show hover popup
+        showingHoverPopup = true;
+        hoverPopup.addTo(currentMap);
+        marker.setPopup(hoverPopup);
+      });
+
+      el.addEventListener('mouseleave', () => {
+        if (onPlaceHover) {
+          onPlaceHover(null);
+        }
+        // Hide hover popup
+        showingHoverPopup = false;
+        hoverPopup.remove();
+        // Reset to original popup (but don't show it)
+        marker.setPopup(popup);
+      });
 
       // Add click handler - navigate to detail page
       el.addEventListener('click', (e) => {

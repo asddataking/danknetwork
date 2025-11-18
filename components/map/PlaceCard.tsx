@@ -2,22 +2,26 @@
 
 import { Place } from '@/types/place';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface PlaceCardProps {
   place: Place;
   isSelected?: boolean;
+  isHovered?: boolean;
   onSelect: () => void;
 }
 
-export default function PlaceCard({ place, isSelected, onSelect }: PlaceCardProps) {
-  const handleClick = (e: React.MouseEvent) => {
+export default function PlaceCard({ place, isSelected, isHovered, onSelect }: PlaceCardProps) {
+  const router = useRouter();
+
+  const handleCardClick = (e: React.MouseEvent) => {
     // If clicking on a link or button, let it handle navigation
     if ((e.target as HTMLElement).closest('a, button')) {
       return;
     }
-    // Otherwise, navigate to detail page if slug exists
+    // Navigate to detail page if slug exists
     if (place.slug) {
-      window.location.href = `/place/${place.slug}`;
+      router.push(`/place/${place.slug}`);
     } else {
       // Fallback to selecting on map
       onSelect();
@@ -27,10 +31,12 @@ export default function PlaceCard({ place, isSelected, onSelect }: PlaceCardProp
   return (
     <div
       id={`place-${place.id}`}
-      onClick={handleClick}
+      onClick={handleCardClick}
       className={`bg-dark-surface rounded-lg border-2 p-2.5 cursor-pointer transition-all duration-200 ${
         isSelected
           ? 'border-neon-green shadow-lg shadow-neon-green/30'
+          : isHovered
+          ? 'border-neon-green shadow-lg shadow-neon-green/50 ring-2 ring-neon-green/30'
           : 'border-neon-green/30 hover:border-neon-green/60'
       }`}
     >

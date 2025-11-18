@@ -6,11 +6,12 @@ import PlaceCard from './PlaceCard';
 interface PlacesListProps {
   places: Place[];
   selectedPlace: Place | null;
+  hoveredPlace: Place | null;
   onPlaceSelect: (place: Place) => void;
   loading?: boolean;
 }
 
-export default function PlacesList({ places, selectedPlace, onPlaceSelect, loading }: PlacesListProps) {
+export default function PlacesList({ places, selectedPlace, hoveredPlace, onPlaceSelect, loading }: PlacesListProps) {
   if (loading) {
     return (
       <div className="p-4">
@@ -41,14 +42,23 @@ export default function PlacesList({ places, selectedPlace, onPlaceSelect, loadi
         </h2>
       </div>
       <div className="space-y-3">
-        {places.map((place) => (
-          <PlaceCard
-            key={place.id}
-            place={place}
-            isSelected={selectedPlace?.id === place.id}
-            onSelect={() => onPlaceSelect(place)}
-          />
-        ))}
+        {places.map((place) => {
+          const isHovered = hoveredPlace?.id === place.id;
+          return (
+            <div
+              key={place.id}
+              id={`place-list-${place.id}`}
+              className={isHovered ? 'transform scale-105 transition-transform duration-200 z-10' : 'transition-transform duration-200'}
+            >
+              <PlaceCard
+                place={place}
+                isSelected={selectedPlace?.id === place.id}
+                isHovered={isHovered}
+                onSelect={() => onPlaceSelect(place)}
+              />
+            </div>
+          );
+        })}
       </div>
     </div>
   );
