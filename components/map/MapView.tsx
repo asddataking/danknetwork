@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import maplibregl from 'maplibre-gl';
+import maplibregl, { type RequestTransformFunction, type RequestParameters, type ResourceType } from 'maplibre-gl';
 import Supercluster from 'supercluster';
 import { Place } from '@/types/place';
 
@@ -67,8 +67,9 @@ export default function MapView({ places, selectedPlace, onPlaceSelect }: MapVie
     // For Mapbox styles with MapLibre GL, we need to add the token to all Mapbox requests
     // This includes tiles, sprites, glyphs, and other resources
     // MapLibre GL doesn't have mapboxgl.accessToken like Mapbox GL JS, so we use transformRequest
-    const transformRequest = mapboxToken && !maptilerKey
-      ? (url: string, resourceType: string) => {
+    // According to MapLibre GL JS docs: RequestTransformFunction = (url: string, resourceType?: ResourceType) => RequestParameters | undefined
+    const transformRequest: RequestTransformFunction | undefined = mapboxToken && !maptilerKey
+      ? (url: string, resourceType?: ResourceType): RequestParameters | undefined => {
           // Add token to all Mapbox API requests (tiles, sprites, glyphs, etc.)
           if (url.includes('api.mapbox.com') && !url.includes('access_token=')) {
             const separator = url.includes('?') ? '&' : '?';
