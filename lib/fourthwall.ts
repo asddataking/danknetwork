@@ -264,17 +264,36 @@ class FourthwallClient {
       if (!this.shopUrl) {
         console.error('[FourthwallClient] shopUrl not configured, cannot fetch from JSON feed');
         console.error('[FourthwallClient] Please set FW_SHOP_URL environment variable');
+        // Try cache even if shopUrl is not configured
+        const cachedProducts = await this.getCachedProducts({ ...options, allowStale: true });
+        if (cachedProducts && cachedProducts.length > 0) {
+          console.log(`[FourthwallClient] Returning ${cachedProducts.length} cached products (shopUrl not configured)`);
+          return cachedProducts;
+        }
         return [];
       }
 
-      // Fetch from JSON feed
-      console.log('[FourthwallClient] Fetching from JSON feed (ONLY source)...');
+      // First, try to get fresh products from cache (non-expired)
+      const freshCachedProducts = await this.getCachedProducts({ ...options, allowStale: false });
+      if (freshCachedProducts && freshCachedProducts.length > 0) {
+        console.log(`[FourthwallClient] Returning ${freshCachedProducts.length} fresh cached products`);
+        return freshCachedProducts;
+      }
+
+      // If no fresh cache, fetch from JSON feed
+      console.log('[FourthwallClient] No fresh cache, fetching from JSON feed...');
       const jsonFeedProducts = await this.getProductsFromFeed(options);
       console.log(`[FourthwallClient] JSON feed returned ${jsonFeedProducts.length} products`);
       
       if (jsonFeedProducts.length === 0) {
         console.warn('[FourthwallClient] JSON feed returned 0 products');
         console.warn('[FourthwallClient] Check the debug endpoint at /api/fourthwall/debug to see raw feed data');
+        // Try stale cache as last resort
+        const staleCachedProducts = await this.getCachedProducts({ ...options, allowStale: true });
+        if (staleCachedProducts && staleCachedProducts.length > 0) {
+          console.log(`[FourthwallClient] Feed returned 0 products, using ${staleCachedProducts.length} stale cached products`);
+          return staleCachedProducts;
+        }
       }
       
       return jsonFeedProducts;
@@ -480,33 +499,99 @@ class FourthwallClient {
       console.log('[FourthwallClient] Shop URL value:', this.shopUrl || 'NOT SET');
       console.log('[FourthwallClient] FW_SHOP_URL env var:', process.env.FW_SHOP_URL ? 'SET' : 'NOT SET');
       
-      // Add timeout to prevent hanging (15 seconds)
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
-      
+      // Try fetching with retry logic (up to 3 attempts)
       let response;
-      try {
-        response = await fetch(feedUrl, {
-          headers: {
-            'Accept': 'application/json',
-          },
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
-      } catch (fetchError: any) {
-        clearTimeout(timeoutId);
-        if (fetchError.name === 'AbortError') {
-          console.error('[FourthwallClient] Feed fetch timeout after 15 seconds');
-          throw new Error('Feed fetch timeout');
+      let lastError: any = null;
+      const maxRetries = 3;
+      const retryDelay = 1000; // 1 second base delay
+      
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          // Add timeout to prevent hanging (15 seconds)
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 15000);
+          
+          try {
+            response = await fetch(feedUrl, {
+              headers: {
+                'Accept': 'application/json',
+                'User-Agent': 'Mozilla/5.0 (compatible; DankNetwork/1.0)',
+              },
+              signal: controller.signal,
+            });
+            clearTimeout(timeoutId);
+            
+            // If successful, break out of retry loop
+            if (response.ok) {
+              break;
+            }
+            
+            // For 403/404, don't retry - go straight to cache
+            if (response.status === 403 || response.status === 404) {
+              console.warn(`[FourthwallClient] Feed returned ${response.status} on attempt ${attempt}, skipping retries`);
+              break;
+            }
+            
+            // For other errors, retry if we have attempts left
+            if (attempt < maxRetries) {
+              // Don't read the body here - we'll read it after the loop if needed
+              console.warn(`[FourthwallClient] Feed fetch failed with ${response.status} on attempt ${attempt}, retrying...`);
+              await new Promise(resolve => setTimeout(resolve, retryDelay * attempt));
+              continue;
+            }
+            
+          } catch (fetchError: any) {
+            clearTimeout(timeoutId);
+            lastError = fetchError;
+            
+            if (fetchError.name === 'AbortError') {
+              console.error(`[FourthwallClient] Feed fetch timeout after 15 seconds (attempt ${attempt}/${maxRetries})`);
+              if (attempt < maxRetries) {
+                await new Promise(resolve => setTimeout(resolve, retryDelay * attempt));
+                continue;
+              }
+              throw new Error('Feed fetch timeout after retries');
+            }
+            
+            // For network errors, retry if we have attempts left
+            if (attempt < maxRetries) {
+              console.warn(`[FourthwallClient] Feed fetch error on attempt ${attempt}, retrying...`, fetchError.message);
+              await new Promise(resolve => setTimeout(resolve, retryDelay * attempt));
+              continue;
+            }
+            
+            throw fetchError;
+          }
+        } catch (error: any) {
+          lastError = error;
+          if (attempt === maxRetries) {
+            console.error(`[FourthwallClient] Feed fetch failed after ${maxRetries} attempts:`, error);
+            throw error;
+          }
         }
-        console.error('[FourthwallClient] Feed fetch error:', fetchError);
-        throw fetchError;
+      }
+      
+      // If we still don't have a response, throw the last error
+      if (!response) {
+        throw lastError || new Error('Failed to fetch products feed after retries');
       }
       
       if (!response.ok) {
         const errorText = await response.text().catch(() => '');
-        console.error(`[FourthwallClient] Feed fetch failed: ${response.status} ${response.statusText}`, errorText);
-        throw new Error(`Failed to fetch products feed: ${response.status}`);
+        const statusCode = response.status;
+        console.error(`[FourthwallClient] Feed fetch failed: ${statusCode} ${response.statusText}`, errorText);
+        
+        // For 403/404 errors, try cache before throwing
+        if (statusCode === 403 || statusCode === 404) {
+          console.warn(`[FourthwallClient] Feed returned ${statusCode}, attempting to use cached products`);
+          const cachedProducts = await this.getCachedProducts({ ...options, allowStale: true });
+          if (cachedProducts && cachedProducts.length > 0) {
+            console.log(`[FourthwallClient] Using ${cachedProducts.length} cached products due to ${statusCode} error`);
+            return cachedProducts;
+          }
+        }
+        
+        throw new Error(`Failed to fetch products feed: ${statusCode}`);
       }
 
       const data = await response.json();
@@ -597,72 +682,12 @@ class FourthwallClient {
     } catch (error) {
       console.error('[FourthwallClient] Feed error:', error);
       
-      // Try to return cached data on error (even if expired)
-      // Query cache without expiration check by using a far future date
-      const client = getSupabaseClient();
-      if (client) {
-        try {
-          const { data: staleData } = await client
-            .from('products_cache')
-            .select('product_id, name, description, price, image_url, checkout_url, raw_data, expires_at, category, in_stock')
-            .limit(100); // Get up to 100 cached products regardless of expiration
-          
-          if (staleData && staleData.length > 0) {
-            // Transform stale cache data
-            const staleProducts = staleData
-              .map((item: any) => {
-                try {
-                  let product = null;
-                  if (item.raw_data && typeof item.raw_data === 'object') {
-                    product = item.raw_data;
-                  }
-                  let images: string[] = [];
-                  if (product?.images) {
-                    images = Array.isArray(product.images) ? product.images : [product.images];
-                  } else if (product?.image) {
-                    images = [product.image];
-                  } else if (item.image_url) {
-                    images = [item.image_url];
-                  }
-                  const transformed: FourthwallProduct = {
-                    id: product?.id || item.product_id || '',
-                    title: product?.title || product?.name || item.name || 'Untitled Product',
-                    handle: product?.handle || '',
-                    price: product?.price 
-                      ? (typeof product.price === 'string' ? parseFloat(product.price) : product.price)
-                      : parseFloat(item.price || 0),
-                    images: images,
-                    available: item.in_stock !== false && (product?.available !== false && product?.inStock !== false),
-                    variants: product?.variants || [],
-                    checkoutUrl: product?.checkoutUrl || item.checkout_url || '',
-                    collection: product?.collection || item.category || 'General',
-                    description: product?.description || item.description || '',
-                    tags: product?.tags || [],
-                  };
-                  if (product?.compareAtPrice !== undefined) {
-                    transformed.compareAtPrice = typeof product.compareAtPrice === 'string'
-                      ? parseFloat(product.compareAtPrice)
-                      : product.compareAtPrice;
-                  }
-                  return transformed;
-                } catch (error) {
-                  return null;
-                }
-              })
-              .filter((p): p is FourthwallProduct => p !== null && !!p.id && !!p.title);
-            
-            if (staleProducts.length > 0) {
-              console.log('[FourthwallClient] Feed failed, returning stale cache');
-              // Apply limit if specified
-              if (options.limit) {
-                return staleProducts.slice(0, options.limit);
-              }
-              return staleProducts;
-            }
-          }
-        } catch (staleError) {
-          console.error('[FourthwallClient] Error fetching stale cache:', staleError);
-        }
+      // Always try to return cached data on error (even if expired)
+      // This is critical for resilience - we should never return empty if we have cache
+      const cachedProducts = await this.getCachedProducts({ ...options, allowStale: true });
+      if (cachedProducts && cachedProducts.length > 0) {
+        console.log(`[FourthwallClient] Feed failed, returning ${cachedProducts.length} cached products (stale allowed)`);
+        return cachedProducts;
       }
       
       console.warn('[FourthwallClient] No products available from feed or cache');
