@@ -393,16 +393,82 @@ export class PlacesService {
         return null;
       }
 
-      const { data, error } = await client
+      // Try to find the place by slug
+      let query = client
         .from('places')
         .select('*')
-        .eq('slug', slug)
-        .eq('status', 'published')
-        .single();
+        .eq('slug', slug);
+      
+      // Only filter by status if it exists in the schema
+      // Some places might not have status set
+      const { data, error } = await query.single();
 
-      if (error) throw error;
+      if (error) {
+        // If slug lookup fails, try to find by ID (in case slug is actually an ID)
+        console.warn('[PlacesService] Slug lookup failed, trying ID fallback:', error.message);
+        const idQuery = client
+          .from('places')
+          .select('*')
+          .eq('id', slug)
+          .single();
+        
+        const { data: idData, error: idError } = await idQuery;
+        
+        if (idError || !idData) {
+          console.error('[PlacesService] Both slug and ID lookup failed:', { slug, slugError: error.message, idError: idError?.message });
+          return null;
+        }
+        
+        // Use the ID result
+        const place: any = { ...idData };
+        
+        // Extract coordinates from geography field
+        if (place.location && typeof place.location === 'object') {
+          if (place.location.coordinates && Array.isArray(place.location.coordinates) && place.location.coordinates.length >= 2) {
+            place.longitude = place.location.coordinates[0];
+            place.latitude = place.location.coordinates[1];
+          } else if (place.location.lng !== undefined && place.location.lat !== undefined) {
+            place.longitude = place.location.lng;
+            place.latitude = place.location.lat;
+          }
+        }
 
-      if (!data) return null;
+        // Parse JSON fields if they're strings
+        if (typeof place.cuisines === 'string') {
+          try {
+            place.cuisines = JSON.parse(place.cuisines);
+          } catch (e) {
+            place.cuisines = place.cuisines ? [place.cuisines] : [];
+          }
+        }
+        if (typeof place.tags === 'string') {
+          try {
+            place.tags = JSON.parse(place.tags);
+          } catch (e) {
+            place.tags = place.tags ? [place.tags] : [];
+          }
+        }
+        if (typeof place.hours === 'string') {
+          try {
+            place.hours = JSON.parse(place.hours);
+          } catch (e) {
+            place.hours = {};
+          }
+        }
+
+        // Ensure arrays are arrays
+        if (!Array.isArray(place.cuisines)) place.cuisines = [];
+        if (!Array.isArray(place.tags)) place.tags = [];
+        if (!place.hours || typeof place.hours !== 'object') place.hours = {};
+
+        console.log('[PlacesService] Found place by ID fallback:', { slug, placeId: place.id, name: place.name });
+        return place;
+      }
+
+      if (!data) {
+        console.warn('[PlacesService] No data returned for slug:', slug);
+        return null;
+      }
 
       // Extract coordinates from geography field
       const place: any = { ...data };
@@ -415,6 +481,36 @@ export class PlacesService {
           place.latitude = place.location.lat;
         }
       }
+
+      // Parse JSON fields if they're strings
+      if (typeof place.cuisines === 'string') {
+        try {
+          place.cuisines = JSON.parse(place.cuisines);
+        } catch (e) {
+          place.cuisines = place.cuisines ? [place.cuisines] : [];
+        }
+      }
+      if (typeof place.tags === 'string') {
+        try {
+          place.tags = JSON.parse(place.tags);
+        } catch (e) {
+          place.tags = place.tags ? [place.tags] : [];
+        }
+      }
+      if (typeof place.hours === 'string') {
+        try {
+          place.hours = JSON.parse(place.hours);
+        } catch (e) {
+          place.hours = {};
+        }
+      }
+
+      // Ensure arrays are arrays
+      if (!Array.isArray(place.cuisines)) place.cuisines = [];
+      if (!Array.isArray(place.tags)) place.tags = [];
+      if (!place.hours || typeof place.hours !== 'object') place.hours = {};
+
+      console.log('[PlacesService] Fetched place by slug:', { slug, placeId: place.id, name: place.name, hasCuisines: !!place.cuisines, hasTags: !!place.tags });
 
       return place;
     } catch (error) {
