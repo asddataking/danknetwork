@@ -5,6 +5,7 @@ import { Video, videos as staticVideos } from '@/data/videos';
 import FeaturedEpisodeHero from '@/components/FeaturedEpisodeHero';
 // import ChannelCarousel from '@/components/ChannelCarousel'; // Hidden for now (only 1 active channel)
 import ShopShowcase from '@/components/ShopShowcase';
+import MunchieMapCarousel from '@/components/MunchieMapCarousel';
 import DealsSection from '@/components/DealsSection';
 import TrendingSection from '@/components/TrendingSection';
 import FeedTheCrew from '@/components/FeedTheCrew';
@@ -85,6 +86,11 @@ export default function HomePage() {
         {/* Shop Showcase */}
         <div className="mb-12">
           <ShopShowcase />
+        </div>
+
+        {/* Munchie Map Carousel */}
+        <div className="mb-12">
+          <MunchieMapCarousel />
         </div>
 
         {/* Deals & Gear Section */}

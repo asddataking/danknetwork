@@ -568,12 +568,16 @@ class FourthwallClient {
         firstProduct: data.products?.[0] ? {
           id: data.products[0].id,
           title: data.products[0].title,
+          name: data.products[0].name,
           handle: data.products[0].handle,
           hasVariants: !!data.products[0].variants,
           variantCount: data.products[0].variants?.length || 0,
           hasImages: !!data.products[0].images,
           imageCount: data.products[0].images?.length || 0,
-        } : null
+          allKeys: Object.keys(data.products[0] || {}),
+        } : null,
+        // Log first few products' keys to understand structure
+        sampleProductKeys: data.products?.[0] ? Object.keys(data.products[0]) : []
       });
       
       // Handle case where data is directly an array (some JSON feeds return array directly)
@@ -582,10 +586,31 @@ class FourthwallClient {
       
       if (productsArray.length === 0) {
         console.warn('[FourthwallClient] No products found in JSON feed');
+        console.warn('[FourthwallClient] Data structure:', {
+          isArray: Array.isArray(data),
+          hasProducts: !!data.products,
+          topLevelKeys: Object.keys(data || {}),
+          dataType: typeof data
+        });
         return [];
       }
       
+      // Log sample of raw product data before transformation
+      if (productsArray.length > 0) {
+        console.log('[FourthwallClient] Sample raw product (before transform):', {
+          keys: Object.keys(productsArray[0]),
+          id: productsArray[0].id,
+          title: productsArray[0].title,
+          name: productsArray[0].name,
+          handle: productsArray[0].handle,
+          hasVariants: !!productsArray[0].variants,
+          hasImages: !!productsArray[0].images,
+        });
+      }
+      
       let products = this.transformProductsFromFeed(productsArray);
+      
+      console.log(`[FourthwallClient] Transformed ${products.length} products from ${productsArray.length} raw products`);
 
       // Apply filters
       if (options.category) {
@@ -861,23 +886,34 @@ class FourthwallClient {
           }
 
           const transformed: FourthwallProduct = {
-            id: product.id?.toString() || product.handle || '',
+            id: product.id?.toString() || product.handle || product.sku || '',
             title: product.title || product.name || 'Untitled Product',
-            handle: product.handle || product.id?.toString() || '',
+            handle: product.handle || product.id?.toString() || product.slug || '',
             price,
             compareAtPrice,
             images,
             available,
             variants,
             checkoutUrl,
-            collection: product.collection || product.product_type || undefined,
-            description: product.body_html || product.description || product.body || '',
+            collection: product.collection || product.product_type || product.type || undefined,
+            description: product.body_html || product.description || product.body || product.summary || '',
             tags,
           };
 
           // Validate required fields
-          if (!transformed.id || !transformed.title) {
-            console.warn('[FourthwallClient] Skipping product with missing id or title:', product);
+          if (!transformed.id || !transformed.title || transformed.title === 'Untitled Product') {
+            console.warn('[FourthwallClient] Skipping product with missing id or title:', {
+              id: transformed.id,
+              title: transformed.title,
+              originalProduct: {
+                id: product.id,
+                handle: product.handle,
+                sku: product.sku,
+                title: product.title,
+                name: product.name,
+                keys: Object.keys(product)
+              }
+            });
             return null;
           }
 
