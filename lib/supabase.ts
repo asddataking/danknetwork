@@ -393,15 +393,70 @@ export class PlacesService {
         return null;
       }
 
-      // Try to find the place by slug
+      // Try to find the place by slug (case-insensitive)
+      // First try exact match
       let query = client
         .from('places')
         .select('*')
         .eq('slug', slug);
       
-      // Only filter by status if it exists in the schema
-      // Some places might not have status set
       const { data, error } = await query.single();
+      
+      // If exact match fails, try case-insensitive search
+      if (error && error.code === 'PGRST116') {
+        console.log('[PlacesService] Exact slug match failed, trying case-insensitive search');
+        const { data: caseInsensitiveData, error: caseError } = await client
+          .from('places')
+          .select('*')
+          .ilike('slug', slug)
+          .maybeSingle();
+        
+        if (!caseError && caseInsensitiveData) {
+          const place: any = { ...caseInsensitiveData };
+          
+          // Extract coordinates from geography field
+          if (place.location && typeof place.location === 'object') {
+            if (place.location.coordinates && Array.isArray(place.location.coordinates) && place.location.coordinates.length >= 2) {
+              place.longitude = place.location.coordinates[0];
+              place.latitude = place.location.coordinates[1];
+            } else if (place.location.lng !== undefined && place.location.lat !== undefined) {
+              place.longitude = place.location.lng;
+              place.latitude = place.location.lat;
+            }
+          }
+
+          // Parse JSON fields if they're strings
+          if (typeof place.cuisines === 'string') {
+            try {
+              place.cuisines = JSON.parse(place.cuisines);
+            } catch (e) {
+              place.cuisines = place.cuisines ? [place.cuisines] : [];
+            }
+          }
+          if (typeof place.tags === 'string') {
+            try {
+              place.tags = JSON.parse(place.tags);
+            } catch (e) {
+              place.tags = place.tags ? [place.tags] : [];
+            }
+          }
+          if (typeof place.hours === 'string') {
+            try {
+              place.hours = JSON.parse(place.hours);
+            } catch (e) {
+              place.hours = {};
+            }
+          }
+
+          // Ensure arrays are arrays
+          if (!Array.isArray(place.cuisines)) place.cuisines = [];
+          if (!Array.isArray(place.tags)) place.tags = [];
+          if (!place.hours || typeof place.hours !== 'object') place.hours = {};
+
+          console.log('[PlacesService] Found place by case-insensitive slug:', { slug, placeId: place.id, name: place.name, actualSlug: place.slug });
+          return place;
+        }
+      }
 
       if (error) {
         // If slug lookup fails, try to find by ID (in case slug is actually an ID)
