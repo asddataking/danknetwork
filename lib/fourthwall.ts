@@ -252,9 +252,7 @@ class FourthwallClient {
 
   /**
    * Fetch products from Fourthwall
-   * Currently using JSON feed as primary source (same as dankndevour.com)
-   * Storefront API code is kept but disabled for future use
-   * Uses Supabase cache to avoid hitting API too frequently (1 hour cache)
+   * JSON feed ONLY - no fallbacks to cache or Storefront API
    */
   async getProducts(options: {
     category?: string;
@@ -262,72 +260,24 @@ class FourthwallClient {
     featured?: boolean;
   } = {}): Promise<FourthwallProduct[]> {
     try {
-      // PRIMARY: Always try JSON feed first (source of truth, same as dankndevour.com)
-      // Cache is only used as a fallback if JSON feed fails
+      // JSON feed ONLY - no fallbacks
       if (!this.shopUrl) {
-        console.warn('[FourthwallClient] shopUrl not configured, cannot fetch from JSON feed');
-        // If no shopUrl, try stale cache as last resort
-        const staleCache = await this.getCachedProducts({ ...options, allowStale: true });
-        if (staleCache && staleCache.length > 0) {
-          console.log('[FourthwallClient] Returning stale cache (shopUrl missing)');
-          return staleCache;
-        }
+        console.error('[FourthwallClient] shopUrl not configured, cannot fetch from JSON feed');
+        console.error('[FourthwallClient] Please set FW_SHOP_URL environment variable');
         return [];
       }
 
-      // Try JSON feed first (primary source)
-      let jsonFeedProducts: FourthwallProduct[] = [];
-      let jsonFeedSuccess = false;
+      // Fetch from JSON feed
+      console.log('[FourthwallClient] Fetching from JSON feed (ONLY source)...');
+      const jsonFeedProducts = await this.getProductsFromFeed(options);
+      console.log(`[FourthwallClient] JSON feed returned ${jsonFeedProducts.length} products`);
       
-      try {
-        console.log('[FourthwallClient] Fetching from JSON feed (primary source)...');
-        jsonFeedProducts = await this.getProductsFromFeed(options);
-        console.log(`[FourthwallClient] JSON feed returned ${jsonFeedProducts.length} products`);
-        
-        if (jsonFeedProducts.length > 0) {
-          // Success! Save to cache for future fallback use
-          try {
-            await this.saveToCache(jsonFeedProducts, options);
-            console.log('[FourthwallClient] Products saved to cache successfully');
-          } catch (cacheError) {
-            console.error('[FourthwallClient] Error saving to cache (non-fatal):', cacheError);
-            // Don't fail if cache save fails, we still have the products
-          }
-          jsonFeedSuccess = true;
-          return jsonFeedProducts;
-        } else {
-          console.warn('[FourthwallClient] JSON feed returned 0 products - this might indicate an issue with the feed');
-        }
-      } catch (feedError) {
-        console.error('[FourthwallClient] JSON feed failed:', feedError);
-        if (feedError instanceof Error) {
-          console.error('[FourthwallClient] Feed error message:', feedError.message);
-          console.error('[FourthwallClient] Feed error stack:', feedError.stack);
-        }
-        jsonFeedProducts = [];
-        jsonFeedSuccess = false;
+      if (jsonFeedProducts.length === 0) {
+        console.warn('[FourthwallClient] JSON feed returned 0 products');
+        console.warn('[FourthwallClient] Check the debug endpoint at /api/fourthwall/debug to see raw feed data');
       }
-
-      // FALLBACK: If JSON feed fails or returns 0, try cache (both fresh and stale)
-      console.log('[FourthwallClient] JSON feed unavailable, trying cache as fallback...');
       
-      // First try fresh cache
-      const cachedProducts = await this.getCachedProducts(options);
-      if (cachedProducts && cachedProducts.length > 0) {
-        console.log(`[FourthwallClient] Returning ${cachedProducts.length} products from fresh cache (fallback)`);
-        return cachedProducts;
-      }
-
-      // Then try stale cache
-      const staleCache = await this.getCachedProducts({ ...options, allowStale: true });
-      if (staleCache && staleCache.length > 0) {
-        console.log(`[FourthwallClient] Returning ${staleCache.length} products from stale cache (fallback)`);
-        return staleCache;
-      }
-
-      // Last resort: return empty array
-      console.warn('[FourthwallClient] All methods failed (JSON feed + cache), returning empty array');
-      return [];
+      return jsonFeedProducts;
 
       /* 
       // STOREFRONT API CODE - DISABLED FOR NOW
@@ -611,6 +561,12 @@ class FourthwallClient {
       let products = this.transformProductsFromFeed(productsArray);
       
       console.log(`[FourthwallClient] Transformed ${products.length} products from ${productsArray.length} raw products`);
+      
+      if (products.length === 0 && productsArray.length > 0) {
+        console.error('[FourthwallClient] WARNING: All products were filtered out during transformation!');
+        console.error('[FourthwallClient] This usually means products are missing required fields (id or title)');
+        console.error('[FourthwallClient] Check server logs above for "Skipping product" warnings');
+      }
 
       // Apply filters
       if (options.category) {
