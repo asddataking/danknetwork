@@ -60,6 +60,62 @@ export async function GET() {
       };
     }
 
+    // Test Storefront API directly - try multiple endpoint formats
+    const storefrontToken = process.env.FW_STOREFRONT_TOKEN || '';
+    const storefrontUrlPatterns = [
+      `${cleanShopUrl}/api/storefront/products`,
+      `${cleanShopUrl}/storefront/api/products`,
+      `https://api.fourthwall.com/storefront/products`,
+      `https://api.fourthwall.com/v1/products`,
+    ];
+    
+    let storefrontTest: any = {
+      hasToken: !!storefrontToken,
+      tokenLength: storefrontToken ? storefrontToken.length : 0,
+      attempts: [],
+    };
+
+    if (storefrontToken) {
+      for (const url of storefrontUrlPatterns) {
+        const attempt: any = { url, status: null, error: null, response: null };
+        try {
+          const storefrontResponse = await fetch(url, {
+            headers: {
+              'Authorization': `Bearer ${storefrontToken}`,
+              'Content-Type': 'application/json',
+            },
+          });
+          
+          attempt.status = storefrontResponse.status;
+          attempt.statusText = storefrontResponse.statusText;
+          
+          if (storefrontResponse.ok) {
+            const storefrontData = await storefrontResponse.json();
+            attempt.response = {
+              hasProducts: !!storefrontData?.products,
+              isArray: Array.isArray(storefrontData),
+              productCount: storefrontData?.products?.length || (Array.isArray(storefrontData) ? storefrontData.length : 0),
+              topLevelKeys: storefrontData ? Object.keys(storefrontData) : [],
+            };
+            storefrontTest.successfulUrl = url;
+            break; // Found working endpoint
+          } else {
+            const errorText = await storefrontResponse.text().catch(() => '');
+            attempt.error = {
+              status: storefrontResponse.status,
+              statusText: storefrontResponse.statusText,
+              body: errorText.substring(0, 200), // Limit error text length
+            };
+          }
+        } catch (error: any) {
+          attempt.error = {
+            message: error.message,
+          };
+        }
+        storefrontTest.attempts.push(attempt);
+      }
+    }
+
     return NextResponse.json({
       shopUrl,
       feedUrl,
@@ -78,6 +134,7 @@ export async function GET() {
         products: clientProducts.slice(0, 3), // First 3 products
         error: clientError,
       },
+      storefrontTest,
     });
   } catch (error: any) {
     return NextResponse.json({

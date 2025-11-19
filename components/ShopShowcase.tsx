@@ -86,8 +86,8 @@ export default function ShopShowcase() {
 
   return (
     <div className="w-full">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-neon-green font-bold text-2xl uppercase">Shop</h2>
+      <div className="flex items-center justify-between mb-4 sm:mb-6">
+        <h2 className="text-neon-green font-bold text-xl sm:text-2xl uppercase">Shop</h2>
         <Link
           href="/shop"
           className="text-white hover:text-neon-green text-sm font-semibold flex items-center gap-2 transition-colors"

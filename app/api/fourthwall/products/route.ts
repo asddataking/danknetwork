@@ -28,11 +28,22 @@ export async function GET(request: NextRequest) {
 
     console.log(`[Products API] Fetched ${products.length} products in ${fetchTime}ms`);
     if (products.length === 0) {
-      console.warn('[Products API] WARNING: No products returned from JSON feed');
+      console.warn('[Products API] WARNING: No products returned');
+      console.warn('[Products API] This could mean:');
+      console.warn('[Products API] 1. JSON feed is returning 403/404 (check FW_SHOP_URL)');
+      console.warn('[Products API] 2. Cache is empty (products need to be fetched successfully at least once)');
+      console.warn('[Products API] 3. All feed URL patterns failed');
       console.warn('[Products API] Check server logs above for FourthwallClient errors');
     }
 
-    return NextResponse.json({ products }, { status: 200 });
+    return NextResponse.json({ 
+      products,
+      _debug: {
+        count: products.length,
+        fetchedIn: `${fetchTime}ms`,
+        timestamp: new Date().toISOString(),
+      }
+    }, { status: 200 });
   } catch (error) {
     console.error('[Products API] Error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';

@@ -71,13 +71,13 @@ export default function VideoCard({ video, onOpen }: VideoCardProps) {
       </div>
 
       {/* Content */}
-      <div className="p-5">
-        <h3 className="text-white font-bold text-base mb-3 line-clamp-2 group-hover/card:text-neon-green transition-colors leading-tight">
+      <div className="p-4 sm:p-5">
+        <h3 className="text-white font-bold text-sm sm:text-base mb-2 sm:mb-3 line-clamp-2 group-hover/card:text-neon-green transition-colors leading-tight">
           {video.title}
         </h3>
         
         {/* Metadata */}
-        <div className="flex items-center gap-2.5 text-xs text-gray-400 mb-4">
+        <div className="flex items-center gap-2 sm:gap-2.5 text-xs text-gray-400 mb-3 sm:mb-4">
           <div className="flex items-center gap-1.5">
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -88,11 +88,11 @@ export default function VideoCard({ video, onOpen }: VideoCardProps) {
         </div>
 
         {/* Vibes */}
-        <div className="flex flex-wrap gap-2 mb-4">
+        <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-3 sm:mb-4">
           {video.vibes.slice(0, 2).map((vibe) => (
             <span
               key={vibe}
-              className="px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-gray-800 to-gray-700 text-gray-200 border border-gray-700/50"
+              className="px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-gray-800 to-gray-700 text-gray-200 border border-gray-700/50"
             >
               {vibe}
             </span>
@@ -100,7 +100,7 @@ export default function VideoCard({ video, onOpen }: VideoCardProps) {
         </div>
 
         {/* Actions */}
-        <div className="flex items-center justify-between pt-4 border-t border-gray-800/50">
+        <div className="flex items-center justify-between pt-3 sm:pt-4 border-t border-gray-800/50">
           <button
             onClick={(e) => {
               e.stopPropagation();

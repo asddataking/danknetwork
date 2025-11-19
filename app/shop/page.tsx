@@ -28,13 +28,13 @@ export default function ShopPage() {
 
   return (
     <div className="min-h-screen bg-black">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
         {/* Header */}
-        <div className="mb-12">
-          <h1 className="text-neon-green font-black text-4xl md:text-5xl mb-4 uppercase">
+        <div className="mb-6 sm:mb-8 lg:mb-12">
+          <h1 className="text-neon-green font-black text-2xl sm:text-3xl md:text-4xl lg:text-5xl mb-3 sm:mb-4 uppercase">
             Shop
           </h1>
-          <p className="text-white text-lg max-w-2xl">
+          <p className="text-white text-base sm:text-lg max-w-2xl">
             Rep the Dank Network with official merch. Limited edition drops and exclusive gear.
           </p>
         </div>

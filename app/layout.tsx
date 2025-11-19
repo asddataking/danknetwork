@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import Header from '@/components/Header';
@@ -13,8 +13,14 @@ export const metadata: Metadata = {
   title: 'Dank Network',
   description: 'Dank Network is a local Michigan media brand for food, weed, and sports – featuring Dank\'N\'Devour, Dank Recipes, Dank Sports, and DankPass rewards.',
   manifest: '/manifest.json',
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
   themeColor: '#00ff00',
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no',
 };
 
 export default function RootLayout({
@@ -32,7 +38,7 @@ export default function RootLayout({
         <PwaProvider />
         <Header />
         <div className="flex flex-1">
-          <main className="flex-1 pb-20 lg:pb-0">
+          <main className="flex-1 pb-20 lg:pb-0 overflow-x-hidden">
             {children}
           </main>
           <Sidebar />

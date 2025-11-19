@@ -280,113 +280,52 @@ class FourthwallClient {
         return freshCachedProducts;
       }
 
-      // If no fresh cache, fetch from JSON feed
+      // If no fresh cache, try JSON feed first, then Storefront API as fallback
       console.log('[FourthwallClient] No fresh cache, fetching from JSON feed...');
-      const jsonFeedProducts = await this.getProductsFromFeed(options);
-      console.log(`[FourthwallClient] JSON feed returned ${jsonFeedProducts.length} products`);
+      let jsonFeedProducts: FourthwallProduct[] = [];
+      
+      try {
+        jsonFeedProducts = await this.getProductsFromFeed(options);
+        console.log(`[FourthwallClient] JSON feed returned ${jsonFeedProducts.length} products`);
+      } catch (feedError: any) {
+        console.warn('[FourthwallClient] JSON feed failed:', feedError.message);
+        jsonFeedProducts = [];
+      }
+      
+      // If JSON feed failed or returned 0 products, try Storefront API as fallback
+      if (jsonFeedProducts.length === 0) {
+        if (this.storefrontToken) {
+          console.log('[FourthwallClient] JSON feed failed/empty, trying Storefront API as fallback...');
+          console.log('[FourthwallClient] Storefront token available:', !!this.storefrontToken);
+          try {
+            const storefrontProducts = await this.getProductsFromStorefrontAPI(options);
+            if (storefrontProducts && storefrontProducts.length > 0) {
+              console.log(`[FourthwallClient] Storefront API returned ${storefrontProducts.length} products`);
+              return storefrontProducts;
+            } else {
+              console.warn('[FourthwallClient] Storefront API returned 0 products');
+            }
+          } catch (storefrontError: any) {
+            console.error('[FourthwallClient] Storefront API failed:', storefrontError.message);
+            console.error('[FourthwallClient] Storefront API error details:', storefrontError);
+          }
+        } else {
+          console.warn('[FourthwallClient] JSON feed failed/empty, but no Storefront token available');
+        }
+      }
       
       if (jsonFeedProducts.length === 0) {
-        console.warn('[FourthwallClient] JSON feed returned 0 products');
+        console.warn('[FourthwallClient] Both JSON feed and Storefront API returned 0 products');
         console.warn('[FourthwallClient] Check the debug endpoint at /api/fourthwall/debug to see raw feed data');
         // Try stale cache as last resort
         const staleCachedProducts = await this.getCachedProducts({ ...options, allowStale: true });
         if (staleCachedProducts && staleCachedProducts.length > 0) {
-          console.log(`[FourthwallClient] Feed returned 0 products, using ${staleCachedProducts.length} stale cached products`);
+          console.log(`[FourthwallClient] All feeds failed, using ${staleCachedProducts.length} stale cached products`);
           return staleCachedProducts;
         }
       }
       
       return jsonFeedProducts;
-
-      /* 
-      // STOREFRONT API CODE - DISABLED FOR NOW
-      // Uncomment below to use Storefront API instead of JSON feed
-      
-      // Build Storefront API URL
-      // Format: https://[shop].fourthwall.com/api/storefront/products
-      const storefrontUrl = `${this.shopUrl}/api/storefront/products`;
-      const params = new URLSearchParams();
-      
-      if (options.category) {
-        params.append('collection', options.category);
-      } else if (this.collectionSlug && this.collectionSlug !== 'all') {
-        params.append('collection', this.collectionSlug);
-      }
-      
-      if (options.limit) {
-        params.append('limit', options.limit.toString());
-      }
-
-      const url = params.toString() ? `${storefrontUrl}?${params.toString()}` : storefrontUrl;
-      console.log('[FourthwallClient] Fetching from Storefront API:', url);
-      
-      // Add timeout to prevent hanging (10 seconds)
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-      
-      let response;
-      try {
-        response = await fetch(url, {
-          headers: {
-            'Authorization': `Bearer ${this.storefrontToken}`,
-            'Content-Type': 'application/json',
-          },
-          signal: controller.signal,
-        });
-        
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-          const errorText = await response.text().catch(() => '');
-          console.error(`[FourthwallClient] Storefront API error: ${response.status} ${response.statusText}`, errorText);
-          // Fallback to JSON feed
-          return await this.getProductsFromFeed(options);
-        }
-
-        const data = await response.json();
-        console.log('[FourthwallClient] Storefront API response:', { 
-          hasProducts: !!data.products, 
-          isArray: Array.isArray(data),
-          productCount: data.products?.length || (Array.isArray(data) ? data.length : 0)
-        });
-        
-        // Storefront API returns { products: [...] } or just an array
-        const products = data.products || data;
-        
-        if (!Array.isArray(products)) {
-          console.error('[FourthwallClient] API returned invalid format');
-          return await this.getProductsFromFeed(options);
-        }
-
-        console.log(`[FourthwallClient] Storefront API returned ${products.length} products`);
-
-        const transformed = this.transformProducts(products);
-        
-        // Apply featured filter if needed
-        let filtered = transformed;
-        if (options.featured) {
-          filtered = transformed.filter(p => 
-            p.tags?.includes('featured') || 
-            p.tags?.includes('Featured') ||
-            p.collection === 'featured'
-          );
-        }
-
-        // Save to cache for next time
-        await this.saveToCache(filtered, options);
-
-        return filtered;
-      } catch (fetchError: any) {
-        clearTimeout(timeoutId);
-        if (fetchError.name === 'AbortError') {
-          console.error('[FourthwallClient] Fetch timeout after 10 seconds');
-        } else {
-          console.error('[FourthwallClient] Fetch error:', fetchError);
-        }
-        // Fallback to JSON feed
-        return await this.getProductsFromFeed(options);
-      }
-      */
     } catch (error) {
       console.error('[FourthwallClient] Error fetching products:', error);
       
@@ -400,6 +339,114 @@ class FourthwallClient {
       // Last resort: return empty array
       console.warn('[FourthwallClient] All methods failed, returning empty array');
       return [];
+    }
+  }
+
+  /**
+   * Fetch products from Fourthwall Storefront API
+   * Used as fallback when JSON feed fails
+   */
+  private async getProductsFromStorefrontAPI(options: {
+    category?: string;
+    limit?: number;
+    featured?: boolean;
+  } = {}): Promise<FourthwallProduct[]> {
+    if (!this.storefrontToken) {
+      console.warn('[FourthwallClient] Storefront token not configured, cannot use Storefront API');
+      return [];
+    }
+
+    if (!this.shopUrl) {
+      console.warn('[FourthwallClient] Shop URL not configured, cannot use Storefront API');
+      return [];
+    }
+
+    // Build Storefront API URL
+    // Format: https://[shop].fourthwall.com/api/storefront/products
+    const cleanShopUrl = this.shopUrl.replace(/\/$/, '');
+    const storefrontUrl = `${cleanShopUrl}/api/storefront/products`;
+    const params = new URLSearchParams();
+    
+    if (options.category) {
+      params.append('collection', options.category);
+    } else if (this.collectionSlug && this.collectionSlug !== 'all') {
+      params.append('collection', this.collectionSlug);
+    }
+    
+    if (options.limit) {
+      params.append('limit', options.limit.toString());
+    }
+
+    const url = params.toString() ? `${storefrontUrl}?${params.toString()}` : storefrontUrl;
+    console.log('[FourthwallClient] Fetching from Storefront API:', url);
+    
+    // Add timeout to prevent hanging (10 seconds)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${this.storefrontToken}`,
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        console.error(`[FourthwallClient] Storefront API error: ${response.status} ${response.statusText}`, errorText);
+        throw new Error(`Storefront API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('[FourthwallClient] Storefront API response:', { 
+        hasProducts: !!data.products, 
+        isArray: Array.isArray(data),
+        productCount: data.products?.length || (Array.isArray(data) ? data.length : 0)
+      });
+      
+      // Storefront API returns { products: [...] } or just an array
+      const products = data.products || data;
+      
+      if (!Array.isArray(products)) {
+        console.error('[FourthwallClient] Storefront API returned invalid format');
+        throw new Error('Storefront API returned invalid format');
+      }
+
+      console.log(`[FourthwallClient] Storefront API returned ${products.length} products`);
+
+      const transformed = this.transformProducts(products);
+      
+      // Apply featured filter if needed
+      let filtered = transformed;
+      if (options.featured) {
+        filtered = transformed.filter(p => 
+          p.tags?.includes('featured') || 
+          p.tags?.includes('Featured') ||
+          p.collection === 'featured'
+        );
+      }
+
+      // Apply limit if specified
+      if (options.limit) {
+        filtered = filtered.slice(0, options.limit);
+      }
+
+      // Save to cache for next time
+      await this.saveToCache(filtered, options);
+
+      return filtered;
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+      if (fetchError.name === 'AbortError') {
+        console.error('[FourthwallClient] Storefront API fetch timeout after 10 seconds');
+        throw new Error('Storefront API timeout');
+      }
+      console.error('[FourthwallClient] Storefront API fetch error:', fetchError);
+      throw fetchError;
     }
   }
 
@@ -493,26 +540,35 @@ class FourthwallClient {
 
       // Ensure shopUrl doesn't have trailing slash
       const cleanShopUrl = this.shopUrl.replace(/\/$/, '');
-      const feedUrl = `${cleanShopUrl}/products.json`;
-      console.log('[FourthwallClient] Fetching from JSON feed:', feedUrl);
+      
+      // Try multiple feed URL patterns - Fourthwall might use different paths
+      const feedUrlPatterns = [
+        `${cleanShopUrl}/products.json`,
+        `${cleanShopUrl}/collections/all/products.json`,
+        `${cleanShopUrl}/api/products.json`,
+        `${cleanShopUrl}/feed/products.json`,
+      ];
+      
       console.log('[FourthwallClient] Shop URL configured:', this.shopUrl ? 'Yes' : 'No');
       console.log('[FourthwallClient] Shop URL value:', this.shopUrl || 'NOT SET');
       console.log('[FourthwallClient] FW_SHOP_URL env var:', process.env.FW_SHOP_URL ? 'SET' : 'NOT SET');
+      console.log('[FourthwallClient] Will try feed URLs:', feedUrlPatterns);
       
-      // Try fetching with retry logic (up to 3 attempts)
-      let response;
+      // Try each feed URL pattern until one works
+      let response: Response | null = null;
+      let successfulFeedUrl: string | null = null;
       let lastError: any = null;
-      const maxRetries = 3;
-      const retryDelay = 1000; // 1 second base delay
       
-      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      for (const feedUrl of feedUrlPatterns) {
+        console.log(`[FourthwallClient] Trying feed URL: ${feedUrl}`);
+        
         try {
-          // Add timeout to prevent hanging (15 seconds)
+          // Add timeout to prevent hanging (10 seconds per attempt)
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 15000);
+          const timeoutId = setTimeout(() => controller.abort(), 10000);
           
           try {
-            response = await fetch(feedUrl, {
+            const testResponse = await fetch(feedUrl, {
               headers: {
                 'Accept': 'application/json',
                 'User-Agent': 'Mozilla/5.0 (compatible; DankNetwork/1.0)',
@@ -521,79 +577,61 @@ class FourthwallClient {
             });
             clearTimeout(timeoutId);
             
-            // If successful, break out of retry loop
-            if (response.ok) {
+            // If successful, use this URL
+            if (testResponse.ok) {
+              console.log(`[FourthwallClient] Successfully accessed feed at: ${feedUrl}`);
+              response = testResponse;
+              successfulFeedUrl = feedUrl;
               break;
             }
             
-            // For 403/404, don't retry - go straight to cache
-            if (response.status === 403 || response.status === 404) {
-              console.warn(`[FourthwallClient] Feed returned ${response.status} on attempt ${attempt}, skipping retries`);
-              break;
-            }
-            
-            // For other errors, retry if we have attempts left
-            if (attempt < maxRetries) {
-              // Don't read the body here - we'll read it after the loop if needed
-              console.warn(`[FourthwallClient] Feed fetch failed with ${response.status} on attempt ${attempt}, retrying...`);
-              await new Promise(resolve => setTimeout(resolve, retryDelay * attempt));
+            // For 403/404, try next URL pattern
+            if (testResponse.status === 403 || testResponse.status === 404) {
+              console.warn(`[FourthwallClient] Feed URL ${feedUrl} returned ${testResponse.status}, trying next pattern...`);
               continue;
             }
+            
+            // For other errors, log and try next
+            console.warn(`[FourthwallClient] Feed URL ${feedUrl} returned ${testResponse.status}, trying next pattern...`);
+            continue;
             
           } catch (fetchError: any) {
             clearTimeout(timeoutId);
-            lastError = fetchError;
             
             if (fetchError.name === 'AbortError') {
-              console.error(`[FourthwallClient] Feed fetch timeout after 15 seconds (attempt ${attempt}/${maxRetries})`);
-              if (attempt < maxRetries) {
-                await new Promise(resolve => setTimeout(resolve, retryDelay * attempt));
-                continue;
-              }
-              throw new Error('Feed fetch timeout after retries');
-            }
-            
-            // For network errors, retry if we have attempts left
-            if (attempt < maxRetries) {
-              console.warn(`[FourthwallClient] Feed fetch error on attempt ${attempt}, retrying...`, fetchError.message);
-              await new Promise(resolve => setTimeout(resolve, retryDelay * attempt));
+              console.warn(`[FourthwallClient] Feed URL ${feedUrl} timed out, trying next pattern...`);
               continue;
             }
             
-            throw fetchError;
+            // For network errors, try next URL
+            console.warn(`[FourthwallClient] Feed URL ${feedUrl} error: ${fetchError.message}, trying next pattern...`);
+            lastError = fetchError;
+            continue;
           }
         } catch (error: any) {
+          console.warn(`[FourthwallClient] Feed URL ${feedUrl} failed:`, error.message);
           lastError = error;
-          if (attempt === maxRetries) {
-            console.error(`[FourthwallClient] Feed fetch failed after ${maxRetries} attempts:`, error);
-            throw error;
-          }
+          continue;
         }
       }
       
-      // If we still don't have a response, throw the last error
-      if (!response) {
-        throw lastError || new Error('Failed to fetch products feed after retries');
-      }
-      
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => '');
-        const statusCode = response.status;
-        console.error(`[FourthwallClient] Feed fetch failed: ${statusCode} ${response.statusText}`, errorText);
+      // If we tried all URLs and none worked, check cache before failing
+      if (!response || !successfulFeedUrl) {
+        console.error('[FourthwallClient] All feed URL patterns failed');
+        console.error('[FourthwallClient] Attempted URLs:', feedUrlPatterns);
         
-        // For 403/404 errors, try cache before throwing
-        if (statusCode === 403 || statusCode === 404) {
-          console.warn(`[FourthwallClient] Feed returned ${statusCode}, attempting to use cached products`);
-          const cachedProducts = await this.getCachedProducts({ ...options, allowStale: true });
-          if (cachedProducts && cachedProducts.length > 0) {
-            console.log(`[FourthwallClient] Using ${cachedProducts.length} cached products due to ${statusCode} error`);
-            return cachedProducts;
-          }
+        // Try cache before giving up
+        const cachedProducts = await this.getCachedProducts({ ...options, allowStale: true });
+        if (cachedProducts && cachedProducts.length > 0) {
+          console.log(`[FourthwallClient] All feeds failed, using ${cachedProducts.length} cached products`);
+          return cachedProducts;
         }
         
-        throw new Error(`Failed to fetch products feed: ${statusCode}`);
+        throw lastError || new Error('All feed URL patterns failed and no cache available');
       }
-
+      
+      // At this point, response is guaranteed to be ok (we only break when ok is true)
+      // Parse the JSON data
       const data = await response.json();
       console.log('[FourthwallClient] Feed response:', { 
         productCount: data.products?.length || 0,
@@ -690,8 +728,9 @@ class FourthwallClient {
         return cachedProducts;
       }
       
-      console.warn('[FourthwallClient] No products available from feed or cache');
-      return [];
+      // If no cache, re-throw the error so the caller can try Storefront API
+      console.warn('[FourthwallClient] No products available from feed or cache, will try Storefront API');
+      throw error;
     }
   }
 

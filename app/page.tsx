@@ -72,9 +72,9 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-black">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
         {/* Featured Episode Hero */}
-        <div className="mb-12">
+        <div className="mb-6 sm:mb-8 lg:mb-12">
           <FeaturedEpisodeHero episode={featuredEpisode} />
         </div>
 
@@ -84,32 +84,32 @@ export default function HomePage() {
         </div> */}
 
         {/* Shop Showcase */}
-        <div className="mb-12">
+        <div className="mb-6 sm:mb-8 lg:mb-12">
           <ShopShowcase />
         </div>
 
         {/* Munchie Map Carousel */}
-        <div className="mb-12">
+        <div className="mb-6 sm:mb-8 lg:mb-12">
           <MunchieMapCarousel />
         </div>
 
         {/* Deals & Gear Section */}
-        <div className="mb-12">
+        <div className="mb-6 sm:mb-8 lg:mb-12">
           <DealsSection />
         </div>
 
         {/* Trending Section */}
-        <div className="mb-12">
+        <div className="mb-6 sm:mb-8 lg:mb-12">
           <TrendingSection title="Trending Now" videos={trendingVideos} />
         </div>
 
         {/* Feed the Crew */}
-        <div className="mb-12">
+        <div className="mb-6 sm:mb-8 lg:mb-12">
           <FeedTheCrew />
         </div>
 
         {/* Newsletter CTA */}
-        <div className="mb-12">
+        <div className="mb-6 sm:mb-8 lg:mb-12">
           <NewsletterCTA />
         </div>
 
