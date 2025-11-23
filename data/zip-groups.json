@@ -1,0 +1,78 @@
+{
+  "detroit_city": {
+    "name": "Detroit City",
+    "zips": ["48201", "48202", "48203", "48204", "48205", "48206", "48207", "48208", "48209", "48210", "48211", "48212", "48213", "48214", "48215", "48216", "48217", "48218", "48219", "48220", "48221", "48222", "48223", "48224", "48225", "48226", "48227", "48228", "48229", "48230", "48231", "48232", "48233", "48234", "48235", "48236", "48237", "48238", "48239", "48240", "48242", "48243"],
+    "description": "Detroit city limits"
+  },
+  "southfield_ferndale": {
+    "name": "Southfield / Ferndale",
+    "zips": ["48033", "48034", "48035", "48036", "48037", "48038", "48075", "48076", "48083", "48084", "48085", "48086"],
+    "description": "Southfield, Ferndale, Royal Oak area"
+  },
+  "troy_rochester": {
+    "name": "Troy / Rochester",
+    "zips": ["48083", "48084", "48085", "48098", "48307", "48308", "48309", "48310", "48312", "48313", "48314", "48315", "48316", "48317", "48318", "48320", "48321", "48322", "48323", "48324", "48325", "48326", "48327", "48328", "48329", "48330", "48331", "48334", "48335", "48336", "48340", "48341", "48342", "48343", "48346", "48348", "48350", "48356", "48357", "48359", "48360", "48361", "48362", "48363", "48367", "48370", "48371", "48374", "48375", "48376", "48377", "48380", "48381", "48382", "48383", "48386", "48390", "48393"],
+    "description": "Troy, Rochester, Bloomfield Hills area"
+  },
+  "warren_st_clair_shores": {
+    "name": "Warren / St. Clair Shores",
+    "zips": ["48080", "48081", "48082", "48083", "48088", "48089", "48090", "48091", "48092", "48093", "48094", "48095", "48096", "48097", "48098", "48099"],
+    "description": "Warren, St. Clair Shores, Eastpointe area"
+  },
+  "livonia_westland": {
+    "name": "Livonia / Westland",
+    "zips": ["48150", "48151", "48152", "48153", "48154", "48174", "48185", "48186", "48187", "48188", "48189", "48190", "48191", "48192", "48193", "48195"],
+    "description": "Livonia, Westland, Canton area"
+  },
+  "dearborn_dearborn_heights": {
+    "name": "Dearborn / Dearborn Heights",
+    "zips": ["48120", "48121", "48122", "48123", "48124", "48125", "48126", "48127", "48128"],
+    "description": "Dearborn and Dearborn Heights"
+  },
+  "ann_arbor": {
+    "name": "Ann Arbor",
+    "zips": ["48103", "48104", "48105", "48106", "48107", "48108", "48109", "48113"],
+    "description": "Ann Arbor and surrounding area"
+  },
+  "grand_rapids": {
+    "name": "Grand Rapids",
+    "zips": ["49501", "49502", "49503", "49504", "49505", "49506", "49507", "49508", "49509", "49510", "49512", "49514", "49515", "49516", "49518", "49519", "49525", "49534", "49544", "49546", "49548"],
+    "description": "Grand Rapids and surrounding area"
+  },
+  "lansing": {
+    "name": "Lansing",
+    "zips": ["48901", "48906", "48910", "48911", "48912", "48915", "48917", "48919", "48924", "48933"],
+    "description": "Lansing and surrounding area"
+  },
+  "kalamazoo": {
+    "name": "Kalamazoo",
+    "zips": ["49001", "49002", "49003", "49004", "49005", "49006", "49007", "49008", "49009", "49048"],
+    "description": "Kalamazoo and surrounding area"
+  },
+  "flint": {
+    "name": "Flint",
+    "zips": ["48501", "48502", "48503", "48504", "48505", "48506", "48507", "48519", "48529", "48532"],
+    "description": "Flint and surrounding area"
+  },
+  "saginaw": {
+    "name": "Saginaw",
+    "zips": ["48601", "48602", "48603", "48604", "48605", "48607", "48609", "48638"],
+    "description": "Saginaw and surrounding area"
+  },
+  "muskegon": {
+    "name": "Muskegon",
+    "zips": ["49440", "49441", "49442", "49443", "49444", "49445"],
+    "description": "Muskegon and surrounding area"
+  },
+  "traverse_city": {
+    "name": "Traverse City",
+    "zips": ["49684", "49685", "49686", "49696"],
+    "description": "Traverse City and surrounding area"
+  },
+  "other": {
+    "name": "Other Michigan Areas",
+    "zips": [],
+    "description": "All other Michigan areas"
+  }
+}
+

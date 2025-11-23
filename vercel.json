@@ -1,0 +1,13 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/fetch-deals",
+      "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/generate-newsletters",
+      "schedule": "0 6 * * *"
+    }
+  ]
+}
+
