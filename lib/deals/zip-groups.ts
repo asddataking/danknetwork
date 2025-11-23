@@ -1,10 +1,13 @@
-import zipGroups from '@/data/zip-groups.json';
+import zipGroupsData from '@/data/zip-groups.json';
 
 export interface ZipGroup {
   name: string;
   zips: string[];
   description: string;
 }
+
+// Type the imported JSON data
+const zipGroups = zipGroupsData as Record<string, ZipGroup>;
 
 export function getZipGroup(zip: string): string | null {
   // Normalize ZIP (remove dashes, ensure 5 digits)
