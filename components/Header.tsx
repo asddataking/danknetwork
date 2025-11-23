@@ -16,9 +16,8 @@ export default function Header() {
             >
               <path d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
-            <span className="text-neon-green font-black text-base sm:text-lg md:text-xl">
-              <span className="hidden sm:inline">DANK NETWORK</span>
-              <span className="sm:hidden">DANK</span>
+            <span className="text-neon-green font-black text-sm sm:text-lg md:text-xl">
+              DANK NETWORK
             </span>
           </Link>
 

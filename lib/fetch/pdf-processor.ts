@@ -30,10 +30,16 @@ export async function processWeedmapsPDF(
     if (pdfText && pdfText.length > 100) {
       try {
         const textProducts = await extractProductsFromOCRText(pdfText);
-        allProducts.push(...textProducts.map(p => ({
-          ...p,
-          rawData: { source: 'pdf_text' },
-        })));
+        allProducts.push(...textProducts
+          .filter(p => p.priceUSD !== null && p.priceUSD !== undefined) // Filter out products without prices
+          .map(p => ({
+            productName: p.productName,
+            productType: p.productType,
+            thcPercent: p.thcPercent,
+            weightGrams: p.weightGrams,
+            priceUSD: p.priceUSD ?? 0, // Ensure it's never null
+            rawData: { source: 'pdf_text' },
+          })));
       } catch (error) {
         console.warn('Failed to extract from PDF text:', error);
       }
@@ -48,10 +54,16 @@ export async function processWeedmapsPDF(
         
         // Option A: Use OpenAI Vision (if OCR not available)
         const visionProducts = await analyzeDealImageOpenAI(imageBuffer);
-        allProducts.push(...visionProducts.map(p => ({
-          ...p,
-          rawData: { source: 'openai_vision' },
-        })));
+        allProducts.push(...visionProducts
+          .filter(p => p.priceUSD !== null && p.priceUSD !== undefined) // Filter out products without prices
+          .map(p => ({
+            productName: p.productName,
+            productType: p.productType,
+            thcPercent: p.thcPercent,
+            weightGrams: p.weightGrams,
+            priceUSD: p.priceUSD ?? 0, // Ensure it's never null
+            rawData: { source: 'openai_vision' },
+          })));
         
         // Option B: If we had OCR, we'd do:
         // const ocrText = await extractTextFromImage(imageBuffer);
@@ -128,6 +140,11 @@ function deduplicateProducts(products: RawProduct[]): RawProduct[] {
   const unique: RawProduct[] = [];
   
   for (const product of products) {
+    // Skip products without valid prices
+    if (!product.priceUSD || product.priceUSD <= 0) {
+      continue;
+    }
+    
     const key = `${product.productName}-${product.priceUSD}-${product.weightGrams}`;
     if (!seen.has(key)) {
       seen.add(key);
