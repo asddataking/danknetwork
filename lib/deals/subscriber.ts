@@ -54,6 +54,7 @@ export async function createSubscriber({
   email,
   zipCode,
   tier,
+  userId,
 }: CreateSubscriberParams): Promise<CreateSubscriberResult> {
   try {
     // Normalize email

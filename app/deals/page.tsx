@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { usePremium } from '@/hooks/usePremium';
 
-export default function DealsPage() {
+function DealsPageContent() {
   const searchParams = useSearchParams();
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { isPremium, subscription, loading: premiumLoading } = usePremium();
@@ -555,5 +555,13 @@ export default function DealsPage() {
         </div>
       </footer>
     </div>
+  );
+}
+
+export default function DealsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <DealsPageContent />
+    </Suspense>
   );
 }

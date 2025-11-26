@@ -26,10 +26,10 @@ export function AuthGuard({
   loadingComponent,
   fallbackComponent,
 }: AuthGuardProps) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
 
   // Show loading state
-  if (isLoading) {
+  if (loading) {
     return loadingComponent || (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary"></div>

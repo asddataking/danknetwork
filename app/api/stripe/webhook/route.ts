@@ -141,7 +141,9 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     if (subscription && typeof subscription === 'string') {
       const stripe = (await import('@/lib/stripe')).stripe;
       if (stripe) {
-        const subDetails = await stripe.subscriptions.retrieve(subscription);
+        const subDetails: any = await stripe.subscriptions.retrieve(subscription, {
+          expand: ['default_payment_method']
+        });
         
         // Create unified subscription record
         const subscriptionId = await upsertSubscription({
@@ -152,7 +154,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
           status: subDetails.status,
           currentPeriodStart: new Date(subDetails.current_period_start * 1000),
           currentPeriodEnd: new Date(subDetails.current_period_end * 1000),
-          cancelAtPeriodEnd: subDetails.cancel_at_period_end || false,
+          cancelAtPeriodEnd: subDetails.cancel_at_period_end,
         });
 
         if (subscriptionId) {
@@ -192,7 +194,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
  * Handle subscription deletion (cancellation)
  * Updates unified subscription status
  */
-async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
+async function handleSubscriptionDeleted(subscription: any) {
   try {
     const subscriptionId = subscription.id;
     console.log('[Stripe Webhook] Subscription canceled:', subscriptionId);
@@ -229,7 +231,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
  * Handle subscription updates
  * Updates unified subscription record
  */
-async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
+async function handleSubscriptionUpdated(subscription: any) {
   try {
     const subscriptionId = subscription.id;
     const email = subscription.metadata?.email;

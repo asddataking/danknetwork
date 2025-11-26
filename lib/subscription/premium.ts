@@ -72,7 +72,7 @@ export async function getUserSubscription(
       return null;
     }
     
-    return data;
+    return data as Subscription | null;
   } catch (error) {
     console.error('[Premium] Unexpected error fetching subscription:', error);
     return null;

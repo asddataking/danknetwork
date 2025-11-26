@@ -50,7 +50,7 @@ export function TierProgressCard({ currentTier, totalPointsEarned, isPremium }: 
           <div className="flex items-center gap-2 mb-1">
             <Trophy className={`w-5 h-5 ${currentConfig.color}`} />
             <h3 className="font-semibold text-brand-ink">{currentTier} Tier</h3>
-            {isPremium && <Crown className="w-4 h-4 text-brand-primary" title="Premium" />}
+            {isPremium && <Crown className="w-4 h-4 text-brand-primary" />}
           </div>
           <p className="text-sm text-brand-subtle">
             {totalPointsEarned.toLocaleString()} total points earned

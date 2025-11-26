@@ -150,20 +150,19 @@ export async function uploadReceipt(
  * Get active perks
  */
 export async function getActivePerks(includePartner = true): Promise<Perk[]> {
-  let query = supabase
+  const selectQuery = includePartner ? '*, partner:partners(*)' : '*';
+  const { data, error } = await supabase
     .from('perks')
-    .select(includePartner ? '*, partner:partners(*)' : '*')
+    .select(selectQuery)
     .eq('is_active', true)
     .order('points_cost', { ascending: true });
-
-  const { data, error } = await query;
 
   if (error) {
     console.error('Error fetching perks:', error);
     return [];
   }
 
-  return data || [];
+  return (data as any) || [];
 }
 
 /**
@@ -220,11 +219,20 @@ export async function redeemPerk(
     return null;
   }
 
-  // Update perk redeemed count
-  await supabase
+  // Update perk redeemed count (increment)
+  // Note: Supabase doesn't support raw SQL in updates, so we fetch and increment
+  const { data: perkData } = await supabase
     .from('perks')
-    .update({ redeemed_count: supabase.raw('redeemed_count + 1') })
-    .eq('id', perkId);
+    .select('redeemed_count')
+    .eq('id', perkId)
+    .single();
+  
+  if (perkData) {
+    await supabase
+      .from('perks')
+      .update({ redeemed_count: (perkData.redeemed_count || 0) + 1 })
+      .eq('id', perkId);
+  }
 
   return data;
 }
