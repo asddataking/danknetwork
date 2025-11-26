@@ -76,14 +76,12 @@ export default function NetworkStrip() {
                 <h3 className="text-purple-400 font-black text-xl">DankPass</h3>
               </div>
               <p className="text-gray-300 text-sm mb-4 leading-relaxed">Upload receipts. Earn munchie rewards.</p>
-              <a
-                href="https://www.dankpass.com"
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                href="/rewards"
                 className="block px-5 py-2.5 bg-gradient-purple text-white font-bold rounded-xl hover:shadow-lg hover:shadow-purple-500/30 transition-all duration-200 text-center text-sm hover:scale-105"
               >
                 Open DankPass
-              </a>
+              </Link>
             </div>
           </div>
         </div>
