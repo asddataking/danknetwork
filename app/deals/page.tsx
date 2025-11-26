@@ -2,9 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
+import { usePremium } from '@/hooks/usePremium';
 
 export default function DealsPage() {
   const searchParams = useSearchParams();
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const { isPremium, subscription, loading: premiumLoading } = usePremium();
+  
   const [formData, setFormData] = useState({
     email: '',
     zip: '',
@@ -13,6 +18,13 @@ export default function DealsPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+  
+  // Pre-fill email if user is authenticated
+  useEffect(() => {
+    if (user?.email && !formData.email) {
+      setFormData(prev => ({ ...prev, email: user.email! }));
+    }
+  }, [user, formData.email]);
 
   // Check for Stripe success/cancel params
   useEffect(() => {
@@ -118,6 +130,28 @@ export default function DealsPage() {
 
             {/* Form */}
             <div id="signup-form" className="bg-dark-surface border-2 border-neon-green/30 rounded-lg p-6">
+              {/* Show user status if authenticated */}
+              {isAuthenticated && user && !authLoading && (
+                <div className="mb-4 p-3 bg-neon-green/10 border border-neon-green/30 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-300">Signed in as</p>
+                      <p className="font-medium text-neon-green">{user.email}</p>
+                      {isPremium && subscription && (
+                        <p className="text-xs text-neon-green mt-1">
+                          Premium Active • Renews {new Date(subscription.current_period_end!).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                    {isPremium && (
+                      <div className="px-3 py-1 bg-neon-green/20 border border-neon-green/40 rounded-full">
+                        <span className="text-xs font-bold text-neon-green uppercase">Premium</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              
               {success ? (
                 <div className="text-center py-8">
                   <div className="text-5xl mb-4">🔥</div>
@@ -139,6 +173,19 @@ export default function DealsPage() {
                     Subscribe another email
                   </button>
                 </div>
+              ) : isPremium ? (
+                <div className="text-center py-8">
+                  <div className="text-5xl mb-4">✨</div>
+                  <h3 className="text-2xl font-bold text-neon-green mb-2">
+                    You're Already Premium!
+                  </h3>
+                  <p className="text-gray-300 mb-4">
+                    You have full access to Daily Dispo Deals Premium. Check your email daily for the best deals!
+                  </p>
+                  <a href="/rewards" className="text-neon-green hover:underline text-sm">
+                    Go to DankPass Rewards →
+                  </a>
+                </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
@@ -153,7 +200,11 @@ export default function DealsPage() {
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       className="w-full px-4 py-3 bg-black border border-neon-green/30 rounded-lg text-white focus:outline-none focus:border-neon-green transition-colors"
                       placeholder="your@email.com"
+                      disabled={isAuthenticated}
                     />
+                    {isAuthenticated && (
+                      <p className="text-xs text-gray-400 mt-1">Using your signed-in account</p>
+                    )}
                   </div>
 
                   <div>

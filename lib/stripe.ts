@@ -70,11 +70,13 @@ export async function createCheckoutSession({
       ],
       customer_email: email,
       metadata: {
+        email, // Include email in metadata for webhook processing
         zip,
         tier: 'premium',
       },
       subscription_data: {
         metadata: {
+          email, // Include email in subscription metadata for webhook processing
           zip,
           tier: 'premium',
         },

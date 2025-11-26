@@ -14,6 +14,8 @@
 import { NextResponse } from 'next/server';
 import { constructWebhookEvent } from '@/lib/stripe';
 import { updateSubscriberTier } from '@/lib/deals/subscriber';
+import { upsertSubscription, linkNewsletterToUser } from '@/lib/subscription/premium';
+import { getSupabaseServiceClient } from '@/lib/auth/supabase';
 import { sendWelcomeEmail, isMailerSendConfigured } from '@/lib/mailersend';
 import Stripe from 'stripe';
 
@@ -91,11 +93,13 @@ export async function POST(request: Request) {
 
 /**
  * Handle successful checkout session completion
+ * Creates unified subscription and links to user account
  */
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   try {
     const email = session.customer_email || session.customer_details?.email;
     const zip = session.metadata?.zip;
+    const subscription = session.subscription as string;
 
     if (!email) {
       console.error('[Stripe Webhook] No email in checkout session');
@@ -104,13 +108,64 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
     console.log('[Stripe Webhook] Checkout completed for:', email);
 
-    // Upgrade subscriber to premium
-    const updateResult = await updateSubscriberTier(email, 'premium');
+    // Get or create user in auth.users
+    const supabase = getSupabaseServiceClient();
+    let userId: string | null = null;
 
-    if (!updateResult.success) {
-      console.error('[Stripe Webhook] Failed to upgrade subscriber:', updateResult.error);
-      return;
+    // Try to find existing user by email
+    const { data: existingUser } = await supabase.auth.admin.listUsers();
+    const user = existingUser?.users?.find(u => u.email === email);
+
+    if (user) {
+      userId = user.id;
+      console.log('[Stripe Webhook] Found existing user:', userId);
+    } else {
+      // Create new user account (they'll need to set password later via magic link/reset)
+      const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
+        email,
+        email_confirm: true,
+      });
+
+      if (createError || !newUser.user) {
+        console.error('[Stripe Webhook] Failed to create user:', createError);
+        // Fall back to legacy tier update if user creation fails
+        await updateSubscriberTier(email, 'premium');
+        return;
+      }
+
+      userId = newUser.user.id;
+      console.log('[Stripe Webhook] Created new user:', userId);
     }
+
+    // Get subscription details from Stripe if available
+    if (subscription && typeof subscription === 'string') {
+      const stripe = (await import('@/lib/stripe')).stripe;
+      if (stripe) {
+        const subDetails = await stripe.subscriptions.retrieve(subscription);
+        
+        // Create unified subscription record
+        const subscriptionId = await upsertSubscription({
+          userId,
+          stripeCustomerId: session.customer as string,
+          stripeSubscriptionId: subscription,
+          stripePriceId: subDetails.items.data[0]?.price.id || '',
+          status: subDetails.status,
+          currentPeriodStart: new Date(subDetails.current_period_start * 1000),
+          currentPeriodEnd: new Date(subDetails.current_period_end * 1000),
+          cancelAtPeriodEnd: subDetails.cancel_at_period_end || false,
+        });
+
+        if (subscriptionId) {
+          console.log('[Stripe Webhook] Created unified subscription:', subscriptionId);
+        }
+      }
+    }
+
+    // Link newsletter subscriber to user account
+    await linkNewsletterToUser(email, userId);
+
+    // Also update legacy tier field for backward compatibility
+    await updateSubscriberTier(email, 'premium');
 
     console.log('[Stripe Webhook] Successfully upgraded subscriber to premium:', email);
 
@@ -135,29 +190,36 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
 /**
  * Handle subscription deletion (cancellation)
+ * Updates unified subscription status
  */
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   try {
-    // Get customer email from subscription
-    const customerId = subscription.customer as string;
+    const subscriptionId = subscription.id;
+    console.log('[Stripe Webhook] Subscription canceled:', subscriptionId);
+
+    // Update unified subscription status
+    const supabase = getSupabaseServiceClient();
+    const { error } = await supabase
+      .from('subscriptions')
+      .update({ 
+        status: 'canceled',
+        canceled_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('stripe_subscription_id', subscriptionId);
+
+    if (error) {
+      console.error('[Stripe Webhook] Failed to update subscription status:', error);
+    } else {
+      console.log('[Stripe Webhook] Updated subscription status to canceled');
+    }
+
+    // Also update legacy tier field for backward compatibility with newsletter system
     const email = subscription.metadata?.email;
-
-    if (!email) {
-      console.warn('[Stripe Webhook] No email metadata in subscription, cannot downgrade');
-      return;
+    if (email) {
+      await updateSubscriberTier(email, 'free');
+      console.log('[Stripe Webhook] Downgraded legacy tier for:', email);
     }
-
-    console.log('[Stripe Webhook] Subscription canceled for:', email);
-
-    // Downgrade subscriber to free tier
-    const updateResult = await updateSubscriberTier(email, 'free');
-
-    if (!updateResult.success) {
-      console.error('[Stripe Webhook] Failed to downgrade subscriber:', updateResult.error);
-      return;
-    }
-
-    console.log('[Stripe Webhook] Successfully downgraded subscriber to free:', email);
   } catch (error) {
     console.error('[Stripe Webhook] Error in handleSubscriptionDeleted:', error);
   }
@@ -165,23 +227,39 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
 
 /**
  * Handle subscription updates
+ * Updates unified subscription record
  */
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   try {
+    const subscriptionId = subscription.id;
     const email = subscription.metadata?.email;
 
-    if (!email) {
-      console.warn('[Stripe Webhook] No email metadata in subscription update');
-      return;
+    console.log('[Stripe Webhook] Subscription updated:', subscriptionId, 'status:', subscription.status);
+
+    // Update unified subscription record
+    const supabase = getSupabaseServiceClient();
+    const { error } = await supabase
+      .from('subscriptions')
+      .update({ 
+        status: subscription.status,
+        current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+        current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+        cancel_at_period_end: subscription.cancel_at_period_end || false,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('stripe_subscription_id', subscriptionId);
+
+    if (error) {
+      console.error('[Stripe Webhook] Failed to update subscription:', error);
+    } else {
+      console.log('[Stripe Webhook] Updated unified subscription record');
     }
 
-    // Check subscription status
-    if (subscription.status === 'active') {
-      console.log('[Stripe Webhook] Subscription active for:', email);
-      await updateSubscriberTier(email, 'premium');
-    } else if (['canceled', 'unpaid', 'past_due'].includes(subscription.status)) {
-      console.log('[Stripe Webhook] Subscription inactive for:', email, 'status:', subscription.status);
-      await updateSubscriberTier(email, 'free');
+    // Also update legacy tier field for backward compatibility
+    if (email) {
+      const tier = subscription.status === 'active' ? 'premium' : 'free';
+      await updateSubscriberTier(email, tier);
+      console.log('[Stripe Webhook] Updated legacy tier for:', email, 'to', tier);
     }
   } catch (error) {
     console.error('[Stripe Webhook] Error in handleSubscriptionUpdated:', error);
