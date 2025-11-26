@@ -11,6 +11,7 @@ interface CreateSubscriberParams {
   email: string;
   zipCode: string;
   tier: 'free' | 'premium';
+  userId?: string;
 }
 
 interface CreateSubscriberResult {
@@ -96,6 +97,7 @@ export async function createSubscriber({
           zip: normalizedZip,
           zip_group: zipGroup,
           tier,
+          user_id: userId || null,
         },
         {
           onConflict: 'email',

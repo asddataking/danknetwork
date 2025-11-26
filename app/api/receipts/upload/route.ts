@@ -94,9 +94,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // TODO: Create receipt record in database when rewards tables exist
-    // For now, return the extracted data
-    /*
+    // Create receipt record in database
     const { data: receipt, error: receiptError } = await supabase
       .from('receipts')
       .insert({
@@ -108,6 +106,7 @@ export async function POST(request: Request) {
         purchase_date: extractedData?.purchaseDate,
         points_awarded: extractedData?.isValid ? pointsAwarded : 0,
         parsed_data: extractedData,
+        processed_at: extractedData?.isValid ? new Date().toISOString() : null,
       })
       .select()
       .single();
@@ -119,18 +118,35 @@ export async function POST(request: Request) {
         { status: 500 }
       );
     }
-    */
+
+    // If auto-approved, award points immediately
+    if (extractedData?.isValid && pointsAwarded > 0) {
+      // Update user profile points
+      const { error: profileError } = await supabase.rpc('award_points', {
+        p_user_id: userId,
+        p_amount: pointsAwarded,
+        p_transaction_type: 'earn',
+        p_source_type: 'receipt',
+        p_source_id: receipt.id,
+        p_description: `Receipt from ${extractedData.merchantName || 'merchant'} - $${extractedData.totalAmount}`
+      });
+
+      if (profileError) {
+        console.error('[Receipt Upload] Error awarding points:', profileError);
+        // Don't fail the request, just log it
+      }
+    }
 
     return NextResponse.json({
       success: true,
       receipt: {
-        id: 'temp-' + Date.now(), // Temporary ID until database is ready
+        id: receipt.id,
         imageUrl: publicUrl,
-        status: extractedData?.isValid ? 'approved' : 'pending',
+        status: receipt.status,
         extractedData,
         pointsAwarded,
-        message: extractedData?.isValid 
-          ? `Receipt processed! You'll receive ${pointsAwarded} points once approved.`
+        message: receipt.status === 'approved'
+          ? `Receipt approved! ${pointsAwarded} points earned! 🎉`
           : 'Receipt uploaded! Our team will review and approve it soon.',
       },
     });

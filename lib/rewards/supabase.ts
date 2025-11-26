@@ -204,15 +204,27 @@ export async function redeemPerk(
     return null;
   }
 
-  // Deduct points via RPC function
-  await supabase.rpc('award_points', {
+  // BURN points via RPC function
+  const { data: burnSuccess, error: burnError } = await supabase.rpc('burn_points', {
     p_user_id: userId,
-    p_amount: -pointsCost,
-    p_transaction_type: 'spent',
-    p_reference_id: data.id,
-    p_reference_type: 'perk',
-    p_description: `Redeemed perk`
+    p_amount: pointsCost,
+    p_source_type: 'perk_redemption',
+    p_source_id: data.id,
+    p_description: `Burned ${pointsCost} points for perk redemption`
   });
+
+  if (burnError || !burnSuccess) {
+    console.error('Error burning points:', burnError);
+    // Rollback: Delete the redemption we just created
+    await supabase.from('perk_redemptions').delete().eq('id', data.id);
+    return null;
+  }
+
+  // Update perk redeemed count
+  await supabase
+    .from('perks')
+    .update({ redeemed_count: supabase.raw('redeemed_count + 1') })
+    .eq('id', perkId);
 
   return data;
 }
