@@ -6,6 +6,7 @@ import FeaturedEpisodeHero from '@/components/FeaturedEpisodeHero';
 // import ChannelCarousel from '@/components/ChannelCarousel'; // Hidden for now (only 1 active channel)
 import ShopShowcase from '@/components/ShopShowcase';
 import MunchieMapCarousel from '@/components/MunchieMapCarousel';
+import DailyDispoDeals from '@/components/DailyDispoDeals';
 import DealsSection from '@/components/DealsSection';
 import TrendingSection from '@/components/TrendingSection';
 import FeedTheCrew from '@/components/FeedTheCrew';
@@ -91,6 +92,11 @@ export default function HomePage() {
         {/* Munchie Map Carousel */}
         <div className="mb-6 sm:mb-8 lg:mb-12">
           <MunchieMapCarousel />
+        </div>
+
+        {/* Daily Dispo Deals Feature */}
+        <div className="mb-6 sm:mb-8 lg:mb-12">
+          <DailyDispoDeals />
         </div>
 
         {/* Deals & Gear Section */}

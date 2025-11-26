@@ -73,25 +73,59 @@ export async function fetchWeedmapsPDFDeals(
 }
 
 /**
- * Fetch deals using AI extraction
+ * Fetch deals using AI extraction (Gemini 1.5 Flash)
  */
 export async function fetchHtmlAIDeals(
   menuUrl: string,
   config: any
 ): Promise<any[]> {
   try {
+    // Import Gemini utilities
+    const { extractDealsWithGemini, extractCompactTextFromHTML, isGeminiConfigured } = await import('../_shared/gemini.ts');
+    
+    if (!isGeminiConfigured()) {
+      console.warn('Gemini API not configured, skipping AI extraction');
+      return [];
+    }
+
     // Fetch HTML
     const response = await fetch(menuUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch ${menuUrl}: ${response.status}`);
+    }
     const html = await response.text();
 
-    // Extract text from HTML (simple extraction)
-    const text = extractTextFromHTML(html);
+    // Extract compact text from HTML
+    const text = extractCompactTextFromHTML(html);
+    
+    if (!text || text.length < 100) {
+      console.warn('Extracted text too short, likely no content');
+      return [];
+    }
 
-    // Use OpenAI to extract products
-    const products = await extractProductsFromText(text);
-    return products;
+    // Get dispensary name from config or URL
+    const dispensaryName = config.name || new URL(menuUrl).hostname;
+
+    // Use Gemini to extract and normalize deals
+    const normalizedDeals = await extractDealsWithGemini(text, dispensaryName);
+
+    // Convert to expected format
+    return normalizedDeals.map((deal: any) => ({
+      productName: deal.normalizedProductName || deal.productName,
+      productType: deal.productType,
+      brand: deal.brand,
+      thcPercent: deal.thcPercent,
+      weightGrams: deal.weightGrams,
+      priceUSD: deal.priceUSD,
+      rawData: {
+        source: 'gemini_flash',
+        originalName: deal.productName,
+        confidence: deal.validationConfidence,
+        notes: deal.validationNotes,
+      },
+    }));
   } catch (error) {
-    console.error('AI extraction error:', error);
+    console.error('Gemini AI extraction error:', error);
     return [];
   }
 }
@@ -184,45 +218,6 @@ function extractPrice(value: any): number {
   return isNaN(num) ? 0 : num;
 }
 
-function extractTextFromHTML(html: string): string {
-  // Simple text extraction - remove HTML tags
-  return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-}
-
-async function extractProductsFromText(text: string): Promise<any[]> {
-  const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
-  if (!openaiApiKey) {
-    console.warn('OpenAI API key not set');
-    return [];
-  }
-
-  try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'user',
-            content: `Extract cannabis products from this text. Return JSON with products array. Each product: productName, productType, thcPercent, weightGrams, priceUSD.\n\n${text}`,
-          },
-        ],
-        response_format: { type: 'json_object' },
-        max_tokens: 2000,
-      }),
-    });
-
-    const data = await response.json();
-    const content = data.choices[0]?.message?.content || '{"products": []}';
-    const parsed = JSON.parse(content);
-    return parsed.products || [];
-  } catch (error) {
-    console.error('OpenAI extraction error:', error);
-    return [];
-  }
-}
+// NOTE: extractTextFromHTML and extractProductsFromText moved to _shared/gemini.ts
+// The fetchHtmlAIDeals function now uses Gemini 1.5 Flash for cost-effective extraction
 

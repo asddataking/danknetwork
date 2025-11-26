@@ -16,6 +16,8 @@ const config: Config = {
         neon: {
           green: '#00ff00',
           'green-dark': '#00cc00',
+          orange: '#ff6b00',
+          'orange-dark': '#ff5500',
         },
       },
     },
