@@ -132,43 +132,91 @@ class FourthwallClient {
               product = item.raw_data;
             }
 
-            // Extract images - handle both 'image' (singular) and 'images' (plural)
+            // Extract images - use improved logic to handle all formats
             let images: string[] = [];
             if (product?.images) {
-              images = Array.isArray(product.images) ? product.images : [product.images];
+              if (Array.isArray(product.images)) {
+                images = product.images.map((img: any) => {
+                  if (typeof img === 'string') return img;
+                  // Handle various image object formats
+                  if (img && typeof img === 'object') {
+                    return img.src || img.url || img.original || img.large || img.medium || img.small || '';
+                  }
+                  return '';
+                }).filter(Boolean);
+              } else if (typeof product.images === 'string') {
+                images = [product.images];
+              } else if (product.images && typeof product.images === 'object') {
+                const img = product.images.src || product.images.url || product.images.original || '';
+                if (img) images = [img];
+              }
             } else if (product?.image) {
-              images = [product.image];
+              if (typeof product.image === 'string') {
+                images = [product.image];
+              } else if (product.image && typeof product.image === 'object') {
+                const img = product.image.src || product.image.url || product.image.original || '';
+                if (img) images = [img];
+              }
+            } else if (product?.featured_image) {
+              images = typeof product.featured_image === 'string' 
+                ? [product.featured_image]
+                : (product.featured_image?.src ? [product.featured_image.src] : []);
             } else if (item.image_url) {
               images = [item.image_url];
             }
+
+            // Parse price using the same helper function
+            let price = 0;
+            if (product?.price !== undefined) {
+              price = this.parsePrice(product.price);
+            } else if (product?.variants?.[0]?.price !== undefined) {
+              price = this.parsePrice(product.variants[0].price);
+            } else {
+              price = this.parsePrice(item.price);
+            }
+
+            // Parse compare at price
+            let compareAtPrice: number | undefined = undefined;
+            if (product?.compareAtPrice !== undefined) {
+              compareAtPrice = this.parsePrice(product.compareAtPrice);
+            } else if (product?.variants?.[0]?.compare_at_price !== undefined) {
+              compareAtPrice = this.parsePrice(product.variants[0].compare_at_price);
+            } else if (product?.compare_at_price !== undefined) {
+              compareAtPrice = this.parsePrice(product.compare_at_price);
+            }
+
+            // Handle variants - ensure prices are parsed correctly
+            const variants = (product?.variants || []).map((v: any) => ({
+              id: v.id?.toString() || v.sku || '',
+              title: v.title || v.name || 'Default',
+              price: this.parsePrice(v.price),
+              available: v.available !== false && v.inventory_quantity !== 0,
+            }));
 
             // Build product from raw_data or individual fields
             const transformed: FourthwallProduct = {
               id: product?.id || item.product_id || '',
               title: product?.title || product?.name || item.name || 'Untitled Product',
               handle: product?.handle || '',
-              price: product?.price 
-                ? (typeof product.price === 'string' ? parseFloat(product.price) : product.price)
-                : parseFloat(item.price || 0),
+              price: price,
+              compareAtPrice: compareAtPrice,
               images: images,
               available: item.in_stock !== false && (product?.available !== false && product?.inStock !== false),
-              variants: product?.variants || [],
+              variants: variants,
               checkoutUrl: product?.checkoutUrl || item.checkout_url || '',
               collection: product?.collection || item.category || 'General',
               description: product?.description || item.description || '',
               tags: product?.tags || [],
             };
 
-            if (product?.compareAtPrice !== undefined) {
-              transformed.compareAtPrice = typeof product.compareAtPrice === 'string'
-                ? parseFloat(product.compareAtPrice)
-                : product.compareAtPrice;
-            }
-
-            console.log(`[FourthwallClient] Transformed product: ${transformed.id} - ${transformed.title}`, transformed);
+            console.log(`[FourthwallClient] Transformed cached product: ${transformed.id} - ${transformed.title}`, {
+              price: transformed.price,
+              compareAtPrice: transformed.compareAtPrice,
+              images: transformed.images.length,
+            });
             return transformed;
           } catch (error) {
-            console.error('[FourthwallClient] Error transforming product:', item, error);
+            console.error('[FourthwallClient] Error transforming cached product:', item, error);
             return null;
           }
         })
