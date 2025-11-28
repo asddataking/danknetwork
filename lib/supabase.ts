@@ -467,122 +467,68 @@ export class PlacesService {
       const { data: caseInsensitiveData, error: caseError } = await client
         .from('places')
         .select('*')
-        .ilike('slug', `%${normalizedSlug}%`)
+        .ilike('slug', slug)
         .maybeSingle();
       
-      // If that doesn't work, try exact case-insensitive match
-      if ((!caseInsensitiveData || caseError) && normalizedSlug !== slug.toLowerCase()) {
-        const { data: exactCaseInsensitiveData } = await client
-          .from('places')
-          .select('*')
-          .ilike('slug', slug)
-          .maybeSingle();
+      // If case-insensitive match found, use it
+      if (!caseError && caseInsensitiveData) {
+        const place: any = { ...caseInsensitiveData };
         
-        if (exactCaseInsensitiveData) {
-          const place: any = { ...exactCaseInsensitiveData };
-          
-          // Extract coordinates from geography field
-          if (place.location && typeof place.location === 'object') {
-            if (place.location.coordinates && Array.isArray(place.location.coordinates) && place.location.coordinates.length >= 2) {
-              place.longitude = place.location.coordinates[0];
-              place.latitude = place.location.coordinates[1];
-            } else if (place.location.lng !== undefined && place.location.lat !== undefined) {
-              place.longitude = place.location.lng;
-              place.latitude = place.location.lat;
-            }
+        // Extract coordinates from geography field
+        if (place.location && typeof place.location === 'object') {
+          if (place.location.coordinates && Array.isArray(place.location.coordinates) && place.location.coordinates.length >= 2) {
+            place.longitude = place.location.coordinates[0];
+            place.latitude = place.location.coordinates[1];
+          } else if (place.location.lng !== undefined && place.location.lat !== undefined) {
+            place.longitude = place.location.lng;
+            place.latitude = place.location.lat;
           }
-
-          // Parse JSON fields if they're strings
-          if (typeof place.cuisines === 'string') {
-            try {
-              place.cuisines = JSON.parse(place.cuisines);
-            } catch (e) {
-              place.cuisines = place.cuisines ? [place.cuisines] : [];
-            }
-          }
-          if (typeof place.tags === 'string') {
-            try {
-              place.tags = JSON.parse(place.tags);
-            } catch (e) {
-              place.tags = place.tags ? [place.tags] : [];
-            }
-          }
-          if (typeof place.hours === 'string') {
-            try {
-              place.hours = JSON.parse(place.hours);
-            } catch (e) {
-              place.hours = {};
-            }
-          }
-
-          // Ensure arrays are arrays and required fields exist
-          if (!Array.isArray(place.cuisines)) place.cuisines = [];
-          if (!Array.isArray(place.tags)) place.tags = [];
-          if (!place.hours || typeof place.hours !== 'object') place.hours = {};
-          
-          // Ensure required fields have fallback values
-          if (!place.name) place.name = 'Unnamed Place';
-          if (!place.slug) place.slug = place.id || '';
-          if (typeof place.latitude !== 'number' || isNaN(place.latitude)) {
-            place.latitude = place.latitude || 0;
-          }
-          if (typeof place.longitude !== 'number' || isNaN(place.longitude)) {
-            place.longitude = place.longitude || 0;
-          }
-
-          console.log('[PlacesService] Found place by case-insensitive slug:', { slug, placeId: place.id, name: place.name, actualSlug: place.slug });
-          return place;
         }
-      }
+
+        // Parse JSON fields if they're strings
+        if (typeof place.cuisines === 'string') {
+          try {
+            place.cuisines = JSON.parse(place.cuisines);
+          } catch (e) {
+            place.cuisines = place.cuisines ? [place.cuisines] : [];
+          }
+        }
+        if (typeof place.tags === 'string') {
+          try {
+            place.tags = JSON.parse(place.tags);
+          } catch (e) {
+            place.tags = place.tags ? [place.tags] : [];
+          }
+        }
+        if (typeof place.hours === 'string') {
+          try {
+            place.hours = JSON.parse(place.hours);
+          } catch (e) {
+            place.hours = {};
+          }
+        }
+
+        // Ensure arrays are arrays and required fields exist
+        if (!Array.isArray(place.cuisines)) place.cuisines = [];
+        if (!Array.isArray(place.tags)) place.tags = [];
+        if (!place.hours || typeof place.hours !== 'object') place.hours = {};
         
-        if (!caseError && caseInsensitiveData) {
-          const place: any = { ...caseInsensitiveData };
-          
-          // Extract coordinates from geography field
-          if (place.location && typeof place.location === 'object') {
-            if (place.location.coordinates && Array.isArray(place.location.coordinates) && place.location.coordinates.length >= 2) {
-              place.longitude = place.location.coordinates[0];
-              place.latitude = place.location.coordinates[1];
-            } else if (place.location.lng !== undefined && place.location.lat !== undefined) {
-              place.longitude = place.location.lng;
-              place.latitude = place.location.lat;
-            }
-          }
-
-          // Parse JSON fields if they're strings
-          if (typeof place.cuisines === 'string') {
-            try {
-              place.cuisines = JSON.parse(place.cuisines);
-            } catch (e) {
-              place.cuisines = place.cuisines ? [place.cuisines] : [];
-            }
-          }
-          if (typeof place.tags === 'string') {
-            try {
-              place.tags = JSON.parse(place.tags);
-            } catch (e) {
-              place.tags = place.tags ? [place.tags] : [];
-            }
-          }
-          if (typeof place.hours === 'string') {
-            try {
-              place.hours = JSON.parse(place.hours);
-            } catch (e) {
-              place.hours = {};
-            }
-          }
-
-          // Ensure arrays are arrays
-          if (!Array.isArray(place.cuisines)) place.cuisines = [];
-          if (!Array.isArray(place.tags)) place.tags = [];
-          if (!place.hours || typeof place.hours !== 'object') place.hours = {};
-
-          console.log('[PlacesService] Found place by case-insensitive slug:', { slug, placeId: place.id, name: place.name, actualSlug: place.slug });
-          return place;
+        // Ensure required fields have fallback values
+        if (!place.name) place.name = 'Unnamed Place';
+        if (!place.slug) place.slug = place.id || '';
+        if (typeof place.latitude !== 'number' || isNaN(place.latitude)) {
+          place.latitude = place.latitude || 0;
         }
+        if (typeof place.longitude !== 'number' || isNaN(place.longitude)) {
+          place.longitude = place.longitude || 0;
+        }
+
+        console.log('[PlacesService] Found place by case-insensitive slug:', { slug, placeId: place.id, name: place.name, actualSlug: place.slug });
+        return place;
       }
 
-      if (error) {
+      // If both exact and case-insensitive matches failed, try ID fallback
+      if (error || caseError) {
         // If slug lookup fails, try to find by ID (in case slug is actually an ID)
         console.warn('[PlacesService] Slug lookup failed, trying ID fallback:', error.message);
         const idQuery = client
@@ -644,73 +590,9 @@ export class PlacesService {
         return place;
       }
 
-      if (!data) {
-        console.warn('[PlacesService] No data returned for slug:', slug);
-        return null;
-      }
-
-      // Extract coordinates from geography field
-      const place: any = { ...data };
-      if (place.location && typeof place.location === 'object') {
-        if (place.location.coordinates && Array.isArray(place.location.coordinates) && place.location.coordinates.length >= 2) {
-          place.longitude = place.location.coordinates[0];
-          place.latitude = place.location.coordinates[1];
-        } else if (place.location.lng !== undefined && place.location.lat !== undefined) {
-          place.longitude = place.location.lng;
-          place.latitude = place.location.lat;
-        }
-      }
-
-      // Ensure latitude/longitude are numbers (fallback to 0 if missing)
-      if (typeof place.latitude !== 'number' || isNaN(place.latitude)) {
-        place.latitude = place.latitude || 0;
-      }
-      if (typeof place.longitude !== 'number' || isNaN(place.longitude)) {
-        place.longitude = place.longitude || 0;
-      }
-
-      // Parse JSON fields if they're strings
-      if (typeof place.cuisines === 'string') {
-        try {
-          place.cuisines = JSON.parse(place.cuisines);
-        } catch (e) {
-          place.cuisines = place.cuisines ? [place.cuisines] : [];
-        }
-      }
-      if (typeof place.tags === 'string') {
-        try {
-          place.tags = JSON.parse(place.tags);
-        } catch (e) {
-          place.tags = place.tags ? [place.tags] : [];
-        }
-      }
-      if (typeof place.hours === 'string') {
-        try {
-          place.hours = JSON.parse(place.hours);
-        } catch (e) {
-          place.hours = {};
-        }
-      }
-
-      // Ensure arrays are arrays and required fields exist
-      if (!Array.isArray(place.cuisines)) place.cuisines = [];
-      if (!Array.isArray(place.tags)) place.tags = [];
-      if (!place.hours || typeof place.hours !== 'object') place.hours = {};
-      
-      // Ensure required fields have fallback values
-      if (!place.name) place.name = 'Unnamed Place';
-      if (!place.slug) place.slug = place.id || '';
-
-      console.log('[PlacesService] Fetched place by slug:', { 
-        slug, 
-        placeId: place.id, 
-        name: place.name, 
-        hasCuisines: !!place.cuisines, 
-        hasTags: !!place.tags,
-        hasLatLng: !!(place.latitude && place.longitude)
-      });
-
-      return place;
+      // If all lookups failed, return null
+      console.warn('[PlacesService] All lookup methods failed for slug:', slug);
+      return null;
     } catch (error) {
       console.error('Error fetching place:', error);
       return null;
