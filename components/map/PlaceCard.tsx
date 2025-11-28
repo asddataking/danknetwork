@@ -32,7 +32,7 @@ export default function PlaceCard({ place, isSelected, isHovered, onSelect }: Pl
     <div
       id={`place-${place.id}`}
       onClick={handleCardClick}
-      className={`bg-dark-surface rounded-lg border-2 p-2.5 cursor-pointer transition-all duration-200 ${
+      className={`bg-dark-surface rounded-lg border-2 p-2 sm:p-2.5 cursor-pointer transition-all duration-200 ${
         isSelected
           ? 'border-neon-green shadow-lg shadow-neon-green/30'
           : isHovered
@@ -40,9 +40,9 @@ export default function PlaceCard({ place, isSelected, isHovered, onSelect }: Pl
           : 'border-neon-green/30 hover:border-neon-green/60'
       }`}
     >
-      <div className="flex gap-3">
+      <div className="flex gap-2 sm:gap-3">
         {/* Image */}
-        <div className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-gray-900 border border-gray-800">
+        <div className="flex-shrink-0 w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-lg overflow-hidden bg-gray-900 border border-gray-800">
           {place.hero_image_url ? (
             <img
               src={place.hero_image_url}
@@ -118,12 +118,12 @@ export default function PlaceCard({ place, isSelected, isHovered, onSelect }: Pl
           </div>
 
           {/* Actions */}
-          <div className="flex gap-1.5 mt-2">
+          <div className="flex gap-1.5 mt-1.5 sm:mt-2">
             {place.slug && (
               <Link
                 href={`/place/${place.slug}`}
                 onClick={(e) => e.stopPropagation()}
-                className="text-xs bg-neon-green text-black px-2 py-1 rounded font-bold hover:bg-neon-green-dark transition-colors uppercase"
+                className="text-xs bg-neon-green text-black px-2 sm:px-2.5 py-1 rounded font-bold hover:bg-neon-green-dark transition-colors uppercase"
               >
                 View
               </Link>
@@ -135,7 +135,7 @@ export default function PlaceCard({ place, isSelected, isHovered, onSelect }: Pl
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="text-xs border border-neon-green/50 text-neon-green px-2 py-1 rounded font-bold hover:bg-neon-green/10 transition-colors uppercase"
+              className="text-xs border border-neon-green/50 text-neon-green px-2 sm:px-2.5 py-1 rounded font-bold hover:bg-neon-green/10 transition-colors uppercase"
             >
               Directions
             </a>

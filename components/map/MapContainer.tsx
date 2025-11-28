@@ -7,6 +7,7 @@ import PlacesList from './PlacesList';
 import FilterPanel from './filters/FilterPanel';
 import ViewToggle from './ViewToggle';
 import { Place } from '@/types/place';
+import { X, Filter } from 'lucide-react';
 
 type ViewMode = 'map' | 'list' | 'split';
 
@@ -18,6 +19,17 @@ export default function MapContainer() {
   const [hoveredPlace, setHoveredPlace] = useState<Place | null>(null);
   const [filters, setFilters] = useState<any>({});
   const [loading, setLoading] = useState(true);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
+  // Set default view mode based on screen size on initial load only
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      // Mobile: default to map view instead of split
+      setViewMode('map');
+    }
+    // Only run on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Fetch places immediately on mount (before map loads) and when filters change
   useEffect(() => {
@@ -104,27 +116,73 @@ export default function MapContainer() {
 
   return (
     <div className="flex flex-col h-full bg-black">
-      {/* View Toggle */}
-      <div className="bg-dark-surface border-b border-neon-green/20 px-4 py-3">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+      {/* View Toggle & Filter Button */}
+      <div className="bg-dark-surface border-b border-neon-green/20 px-3 sm:px-4 py-2 sm:py-3">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
           <ViewToggle viewMode={viewMode} onViewModeChange={setViewMode} />
+          {/* Mobile Filter Button */}
+          <button
+            onClick={() => setFiltersOpen(!filtersOpen)}
+            className="lg:hidden flex items-center gap-2 px-3 py-2 bg-neon-green/20 hover:bg-neon-green/30 text-neon-green rounded-lg font-bold text-sm uppercase transition-colors border border-neon-green/30"
+            aria-label="Toggle filters"
+          >
+            <Filter className="w-4 h-4" />
+            <span className="hidden sm:inline">Filters</span>
+          </button>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Filters Sidebar */}
-        <div className="w-80 bg-dark-surface border-r border-neon-green/20 overflow-y-auto">
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Filters Sidebar - Desktop: always visible, Mobile: drawer */}
+        <div
+          className={`
+            fixed lg:static inset-y-0 left-0 z-50
+            w-80 max-w-[85vw] lg:max-w-none
+            bg-dark-surface border-r border-neon-green/20 
+            overflow-y-auto
+            transform transition-transform duration-300 ease-in-out
+            ${filtersOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+            lg:translate-x-0
+          `}
+        >
           <div className="p-4">
+            {/* Mobile Close Button */}
+            <div className="flex items-center justify-between mb-4 lg:hidden">
+              <h3 className="text-neon-green font-bold text-lg uppercase">Filters</h3>
+              <button
+                onClick={() => setFiltersOpen(false)}
+                className="p-2 text-gray-400 hover:text-neon-green transition-colors"
+                aria-label="Close filters"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
             <FilterPanel onFilterChange={handleFilterChange} />
           </div>
         </div>
 
+        {/* Mobile Overlay when filters open */}
+        {filtersOpen && (
+          <div
+            className="lg:hidden fixed inset-0 bg-black/60 z-40"
+            onClick={() => setFiltersOpen(false)}
+            aria-hidden="true"
+          />
+        )}
+
         {/* Map/List Area */}
-        <div className="flex-1 flex overflow-hidden">
-          {/* Map View - Reduced by 20% */}
+        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+          {/* Map View */}
           {(viewMode === 'map' || viewMode === 'split') && (
-            <div className={viewMode === 'split' ? 'w-[40%] border-r border-neon-green/20' : 'w-[80%]'}>
+            <div
+              className={`
+                ${viewMode === 'split' ? 'w-full lg:w-[40%]' : 'w-full'}
+                ${viewMode === 'split' ? 'h-1/2 lg:h-auto' : 'h-full'}
+                ${viewMode === 'split' ? 'border-b lg:border-b-0 lg:border-r border-neon-green/20' : ''}
+                flex-shrink-0
+              `}
+            >
               <MapView
                 places={filteredPlaces}
                 selectedPlace={selectedPlace}
@@ -134,9 +192,16 @@ export default function MapContainer() {
             </div>
           )}
 
-          {/* List View - Adjusted for reduced map size */}
+          {/* List View */}
           {(viewMode === 'list' || viewMode === 'split') && (
-            <div className={viewMode === 'split' ? 'w-[60%] overflow-y-auto' : 'w-full overflow-y-auto'}>
+            <div
+              className={`
+                ${viewMode === 'split' ? 'w-full lg:w-[60%]' : 'w-full'}
+                ${viewMode === 'split' ? 'h-1/2 lg:h-auto' : 'h-full'}
+                overflow-y-auto
+                flex-shrink-0
+              `}
+            >
               <PlacesList
                 places={filteredPlaces}
                 selectedPlace={selectedPlace}

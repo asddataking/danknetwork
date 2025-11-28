@@ -35,20 +35,20 @@ export default function PlacesList({ places, selectedPlace, hoveredPlace, onPlac
   }
 
   return (
-    <div className="p-4">
-      <div className="mb-4">
-        <h2 className="text-neon-green font-bold text-xl uppercase">
+    <div className="p-2 sm:p-3 lg:p-4">
+      <div className="mb-3 sm:mb-4">
+        <h2 className="text-neon-green font-bold text-base sm:text-lg lg:text-xl uppercase">
           {places.length} {places.length === 1 ? 'Place' : 'Places'} Found
         </h2>
       </div>
-      <div className="space-y-3">
+      <div className="space-y-2 sm:space-y-3">
         {places.map((place) => {
           const isHovered = hoveredPlace?.id === place.id;
           return (
             <div
               key={place.id}
               id={`place-list-${place.id}`}
-              className={isHovered ? 'transform scale-105 transition-transform duration-200 z-10' : 'transition-transform duration-200'}
+              className={isHovered ? 'transform scale-[1.02] sm:scale-105 transition-transform duration-200 z-10' : 'transition-transform duration-200'}
             >
               <PlaceCard
                 place={place}

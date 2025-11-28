@@ -18,13 +18,13 @@ const MapContainerDynamic = dynamic(() => import('@/components/map/MapContainer'
 export default function MunchieMapPage() {
   return (
     <div className="min-h-screen bg-black flex flex-col">
-      {/* Header Section */}
-      <div className="bg-dark-surface border-b border-neon-green/20 px-4 sm:px-6 lg:px-8 py-6 flex-shrink-0">
+      {/* Header Section - Optimized for mobile */}
+      <div className="bg-dark-surface border-b border-neon-green/20 px-3 sm:px-4 lg:px-8 py-3 sm:py-4 lg:py-6 flex-shrink-0">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-neon-green font-black text-3xl md:text-4xl uppercase mb-2">
+          <h1 className="text-neon-green font-black text-xl sm:text-2xl lg:text-3xl xl:text-4xl uppercase mb-1 sm:mb-2">
             Interactive Munchie Map
           </h1>
-          <p className="text-gray-300 text-lg">
+          <p className="text-gray-300 text-sm sm:text-base lg:text-lg">
             Discover Michigan&apos;s most authentic food experiences, verified dispensaries, and hidden gems
           </p>
         </div>
