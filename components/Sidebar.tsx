@@ -145,12 +145,29 @@ export default function Sidebar() {
           </div>
           <div className="pt-6">
             <h3 className="text-neon-green font-bold text-xl mb-3 uppercase">JOIN THE NETWORK</h3>
-            <p className="text-white text-sm mb-6 leading-relaxed">
-              Unlock exclusive content, early access to drops, and join our community of legends.
+            <p className="text-white text-sm mb-4 leading-relaxed">
+              Unlock <span className="text-neon-orange font-bold">Premium</span> for $4.20/mo and get:
             </p>
-            <button className="w-full bg-neon-green text-black font-bold py-3 px-6 rounded-lg hover:bg-neon-green-dark transition-colors duration-200 uppercase">
-              GET MEMBERSHIP
-            </button>
+            <ul className="text-white text-xs space-y-2 mb-6">
+              <li className="flex items-start gap-2">
+                <span className="text-neon-green">✓</span>
+                <span><strong>DankPass Premium:</strong> 1.5x points, unlimited uploads</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-neon-green">✓</span>
+                <span><strong>Daily Deals Premium:</strong> 10+ deals daily, early access</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-neon-green">✓</span>
+                <span><strong>Earn & Burn:</strong> Maximize your rewards</span>
+              </li>
+            </ul>
+            <Link 
+              href="/rewards/premium"
+              className="block w-full bg-neon-green text-black font-bold py-3 px-6 rounded-lg hover:bg-neon-green-dark transition-colors duration-200 uppercase text-center"
+            >
+              GET PREMIUM
+            </Link>
           </div>
         </div>
 

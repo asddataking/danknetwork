@@ -473,32 +473,70 @@ function DealsPageContent() {
                 <div className="text-gray-400">For serious savers</div>
               </div>
 
-              <ul className="space-y-4 mb-8">
-                <li className="flex items-start gap-3">
-                  <span className="text-neon-orange text-xl flex-shrink-0">✓</span>
-                  <span className="text-gray-300"><strong>Full daily list</strong> of top deals</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="text-neon-orange text-xl flex-shrink-0">✓</span>
-                  <span className="text-gray-300"><strong>10+ deals per day</strong></span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="text-neon-orange text-xl flex-shrink-0">✓</span>
-                  <span className="text-gray-300"><strong>Earlier sends</strong> (7am vs 9am)</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="text-neon-orange text-xl flex-shrink-0">✓</span>
-                  <span className="text-gray-300">Custom brand filtering</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="text-neon-orange text-xl flex-shrink-0">✓</span>
-                  <span className="text-gray-300">Price drop alerts</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="text-neon-orange text-xl flex-shrink-0">✓</span>
-                  <span className="text-gray-300">Proximity filtering (15 miles)</span>
-                </li>
-              </ul>
+              <div className="mb-6">
+                <div className="bg-gradient-to-r from-neon-orange/10 to-neon-green/10 border border-neon-orange/30 rounded-lg p-4 mb-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-2xl">👑</span>
+                    <span className="text-neon-orange font-bold">Premium Includes Both:</span>
+                  </div>
+                  <div className="text-sm text-gray-300 space-y-1">
+                    <div>✓ <strong>Daily Dispo Deals Premium</strong> - All deal features below</div>
+                    <div>✓ <strong>DankPass Rewards Premium</strong> - Earn & Burn benefits</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <h4 className="text-white font-bold text-sm mb-3 uppercase tracking-wide">Daily Dispo Deals Premium:</h4>
+                <ul className="space-y-3">
+                  <li className="flex items-start gap-3">
+                    <span className="text-neon-orange text-xl flex-shrink-0">✓</span>
+                    <span className="text-gray-300"><strong>Full daily list</strong> of top deals</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-neon-orange text-xl flex-shrink-0">✓</span>
+                    <span className="text-gray-300"><strong>10+ deals per day</strong></span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-neon-orange text-xl flex-shrink-0">✓</span>
+                    <span className="text-gray-300"><strong>Earlier sends</strong> (7am vs 9am)</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-neon-orange text-xl flex-shrink-0">✓</span>
+                    <span className="text-gray-300">Custom brand filtering</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-neon-orange text-xl flex-shrink-0">✓</span>
+                    <span className="text-gray-300">Price drop alerts</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-neon-orange text-xl flex-shrink-0">✓</span>
+                    <span className="text-gray-300">Proximity filtering (15 miles)</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="mb-8">
+                <h4 className="text-white font-bold text-sm mb-3 uppercase tracking-wide">DankPass Rewards Premium (Earn & Burn):</h4>
+                <ul className="space-y-3">
+                  <li className="flex items-start gap-3">
+                    <span className="text-neon-green text-xl flex-shrink-0">🔥</span>
+                    <span className="text-gray-300"><strong>1.5x Points Multiplier</strong> - Earn 50% more on every purchase</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-neon-green text-xl flex-shrink-0">🔥</span>
+                    <span className="text-gray-300"><strong>Unlimited Receipt Uploads</strong> - No monthly limits</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-neon-green text-xl flex-shrink-0">🔥</span>
+                    <span className="text-gray-300"><strong>Exclusive Perks</strong> - Premium-only rewards & offers</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-neon-green text-xl flex-shrink-0">🔥</span>
+                    <span className="text-gray-300"><strong>Priority Support</strong> - Get help faster</span>
+                  </li>
+                </ul>
+              </div>
 
               <button
                 onClick={() => handlePlanSelect('premium')}

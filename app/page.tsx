@@ -13,6 +13,7 @@ import FeedTheCrew from '@/components/FeedTheCrew';
 import FilterChips from '@/components/FilterChips';
 import VideoFeed from '@/components/VideoFeed';
 import NewsletterCTA from '@/components/NewsletterCTA';
+import PremiumGamificationCTA from '@/components/PremiumGamificationCTA';
 
 export default function HomePage() {
   const [selectedFilter, setSelectedFilter] = useState('all');
@@ -79,7 +80,7 @@ export default function HomePage() {
     '@type': 'Organization',
     name: 'Dank Network',
     url: process.env.NEXT_PUBLIC_SITE_URL || 'https://www.thedanknetwork.com',
-    logo: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.thedanknetwork.com'}/logo.png`,
+    logo: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.thedanknetwork.com'}/icons/DankNetwork.png.png`,
     description: 'Michigan\'s home for dank content, food reviews, cannabis culture, and the Earn & Burn rewards system.',
     sameAs: [
       'https://www.youtube.com/@DankNetwork',
@@ -134,6 +135,11 @@ export default function HomePage() {
         {/* Trending Section */}
         <div className="mb-6 sm:mb-8 lg:mb-12">
           <TrendingSection title="Trending Now" videos={trendingVideos} />
+        </div>
+
+        {/* Premium Gamification CTA */}
+        <div className="mb-6 sm:mb-8 lg:mb-12">
+          <PremiumGamificationCTA />
         </div>
 
         {/* Feed the Crew */}

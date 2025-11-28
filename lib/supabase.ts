@@ -32,6 +32,7 @@ function getSupabaseClient(): SupabaseClient | null {
  */
 function getSupabaseServiceClient(): SupabaseClient | null {
   if (!supabaseUrl) {
+    console.error('[getSupabaseServiceClient] No Supabase URL configured');
     return null;
   }
   
@@ -39,11 +40,13 @@ function getSupabaseServiceClient(): SupabaseClient | null {
   if (supabaseServiceKey) {
     if (!supabaseService) {
       supabaseService = createClient(supabaseUrl, supabaseServiceKey);
+      console.log('[getSupabaseServiceClient] Created service role client');
     }
     return supabaseService;
   }
   
   // Fallback to anon key if service role key is not available
+  console.warn('[getSupabaseServiceClient] Service role key not found, falling back to anon key. This may cause RLS issues.');
   return getSupabaseClient();
 }
 
@@ -418,6 +421,7 @@ export class PlacesService {
     try {
       const client = getSupabaseServiceClient();
       if (!client) {
+        console.error('[PlacesService.getPlaceBySlug] No Supabase client available. Check environment variables.');
         return null;
       }
 
@@ -432,6 +436,10 @@ export class PlacesService {
         .eq('slug', slug);
       
       const { data, error } = await query.maybeSingle();
+      
+      if (error) {
+        console.error('[PlacesService.getPlaceBySlug] Error in exact match query:', error);
+      }
       
       // If exact match found, use it
       if (data && !error) {
@@ -623,7 +631,12 @@ export class PlacesService {
       console.warn('[PlacesService] All lookup methods failed for slug:', slug);
       return null;
     } catch (error) {
-      console.error('Error fetching place:', error);
+      console.error('[PlacesService.getPlaceBySlug] Error fetching place:', error);
+      console.error('[PlacesService.getPlaceBySlug] Error details:', error instanceof Error ? {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      } : String(error));
       return null;
     }
   }

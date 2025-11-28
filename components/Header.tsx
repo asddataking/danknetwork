@@ -1,21 +1,23 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function Header() {
   return (
     <header className="sticky top-0 z-50 bg-black border-b border-neon-green/20">
       <div className="px-3 sm:px-4 md:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14 sm:h-16">
-          {/* Logo with Lightning Bolt */}
+          {/* Logo with Image */}
           <Link href="/" className="flex items-center space-x-1 sm:space-x-2 group">
-            <svg 
-              className="w-5 h-5 sm:w-6 sm:h-6 text-neon-green" 
-              fill="currentColor" 
-              viewBox="0 0 24 24"
-            >
-              <path d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
+            <Image
+              src="/icons/DankNetwork.png.png"
+              alt="Dank Network Logo"
+              width={24}
+              height={24}
+              className="w-5 h-5 sm:w-6 sm:h-6 object-contain"
+              priority
+            />
             <span className="text-neon-green font-black text-sm sm:text-lg md:text-xl">
               DANK NETWORK
             </span>

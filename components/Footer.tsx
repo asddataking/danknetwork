@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -18,9 +19,13 @@ export default function Footer() {
           {/* Brand */}
           <div className="col-span-1 sm:col-span-2 md:col-span-1">
             <div className="flex items-center space-x-2 sm:space-x-3 mb-3 sm:mb-4">
-              <div className="w-10 h-10 rounded-xl bg-gradient-turquoise flex items-center justify-center shadow-lg shadow-accent-turquoise/30">
-                <span className="text-dark-bg font-black text-sm">DN</span>
-              </div>
+              <Image
+                src="/icons/DankNetwork.png.png"
+                alt="Dank Network Logo"
+                width={40}
+                height={40}
+                className="w-10 h-10 object-contain"
+              />
               <span className="text-white font-black text-lg sm:text-xl bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
                 Dank Network
               </span>

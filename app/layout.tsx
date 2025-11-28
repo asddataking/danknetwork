@@ -57,7 +57,7 @@ export const metadata: Metadata = {
     description: 'Dank Network is Michigan\'s home for dank content and next-level rewards. We bring together food reviews, cannabis culture, local adventures, daily deals, and creator-driven entertainment—all inside one connected universe. Powered by our Earn & Burn™ Rewards, fans can watch content, complete challenges, upload receipts, and unlock perks from restaurants, dispensaries, and local businesses statewide.',
     images: [
       {
-        url: '/og-image.jpg',
+        url: '/icons/DankNetwork.png.png',
         width: 1200,
         height: 630,
         alt: 'Dank Network - Michigan\'s Home for Dank Content & Rewards',
@@ -69,7 +69,11 @@ export const metadata: Metadata = {
     title: 'Dank Network — Michigan\'s Home for Dank Content & Rewards',
     description: 'Discover Michigan\'s hub for dank content, food reviews, cannabis culture, and the Earn & Burn rewards system. Watch, earn points, and unlock local perks.',
     creator: '@DankNetwork',
-    images: ['/og-image.jpg'],
+    images: ['/icons/DankNetwork.png.png'],
+  },
+  icons: {
+    icon: '/icons/DankNetwork.png.png',
+    apple: '/icons/DankNetwork.png.png',
   },
   robots: {
     index: true,

@@ -53,8 +53,39 @@ export default function DailyDispoDeals() {
                 <div className="flex items-start gap-3">
                   <span className="text-neon-green text-xl flex-shrink-0">✓</span>
                   <span className="text-gray-300">
-                    <span className="text-white font-semibold">Free</span> or Premium ($4.20/mo)
+                    <span className="text-white font-semibold">Free</span> or <span className="text-neon-orange font-bold">Premium ($4.20/mo)</span>
                   </span>
+                </div>
+              </div>
+
+              {/* Premium CTA */}
+              <div className="bg-gradient-to-r from-neon-orange/10 to-neon-green/10 border border-neon-orange/30 rounded-lg p-4 mb-6">
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl">👑</span>
+                  <div className="flex-1">
+                    <h3 className="text-neon-orange font-bold text-lg mb-1">Unlock Premium for $4.20/mo</h3>
+                    <p className="text-gray-300 text-sm mb-3">
+                      Get <span className="text-white font-semibold">Daily Dispo Deals Premium</span> + <span className="text-white font-semibold">DankPass Rewards Premium</span> - all in one!
+                    </p>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center gap-2 text-gray-300">
+                        <span className="text-neon-orange">🔥</span>
+                        <span><strong>Earn & Burn:</strong> 1.5x points multiplier on every purchase</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-gray-300">
+                        <span className="text-neon-orange">🔥</span>
+                        <span><strong>Unlimited uploads:</strong> No monthly receipt limits</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-gray-300">
+                        <span className="text-neon-orange">🔥</span>
+                        <span><strong>10+ daily deals:</strong> Full list vs 3-5 for free</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-gray-300">
+                        <span className="text-neon-orange">🔥</span>
+                        <span><strong>Early access:</strong> Deals at 7am instead of 9am</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 

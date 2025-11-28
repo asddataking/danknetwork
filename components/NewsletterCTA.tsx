@@ -1,59 +1,56 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 export default function NewsletterCTA() {
   const [email, setEmail] = useState('');
+  const [zip, setZip] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [shopUrl, setShopUrl] = useState('');
-
-  // Fetch shop URL from API
-  useEffect(() => {
-    const fetchShopUrl = async () => {
-      try {
-        const response = await fetch('/api/fourthwall/shop-url');
-        if (response.ok) {
-          const data = await response.json();
-          if (data.shopUrl) {
-            setShopUrl(data.shopUrl);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching shop URL:', error);
-      }
-    };
-
-    fetchShopUrl();
-  }, []);
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!email || !email.includes('@')) {
-      alert('Please enter a valid email address');
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    if (!zip || !/^\d{5}$/.test(zip)) {
+      setError('Please enter a valid 5-digit ZIP code');
       return;
     }
 
     setLoading(true);
+    setError('');
 
     try {
-      if (shopUrl) {
-        // Fourthwall newsletter signup - redirect to shop newsletter page
-        // Fourthwall typically has newsletter at /newsletter or /pages/newsletter
-        // We'll try the most common pattern and let Fourthwall handle the email prefill if supported
-        const newsletterUrl = `${shopUrl}/newsletter${email ? `?email=${encodeURIComponent(email)}` : ''}`;
-        window.open(newsletterUrl, '_blank');
+      const response = await fetch('/api/subscribe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          zip,
+          tier: 'free',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
         setSubmitted(true);
         setEmail('');
+        setZip('');
         setTimeout(() => setSubmitted(false), 5000);
       } else {
-        // Fallback: Show message that newsletter signup is available on shop
-        alert('Please visit our shop to sign up for the newsletter!');
+        setError(data.error || 'Something went wrong. Please try again.');
       }
     } catch (error) {
       console.error('Newsletter signup error:', error);
-      alert('Something went wrong. Please try again.');
+      setError('Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -86,22 +83,36 @@ export default function NewsletterCTA() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="max-w-md mx-auto">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email"
-                required
-                className="flex-1 bg-black border-2 border-neon-green/30 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-neon-green transition-colors"
-              />
+            <div className="space-y-3">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your email"
+                  required
+                  className="flex-1 bg-black border-2 border-neon-green/30 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-neon-green transition-colors"
+                />
+                <input
+                  type="text"
+                  value={zip}
+                  onChange={(e) => setZip(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                  placeholder="ZIP"
+                  required
+                  maxLength={5}
+                  className="w-24 bg-black border-2 border-neon-green/30 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-neon-green transition-colors"
+                />
+              </div>
+              {error && (
+                <div className="text-red-400 text-sm text-center">{error}</div>
+              )}
               <button
                 type="submit"
                 disabled={loading}
-                className="bg-neon-green text-black font-bold px-8 py-3 rounded-lg hover:bg-neon-green-dark transition-colors duration-200 uppercase disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                className="w-full bg-neon-green text-black font-bold px-8 py-3 rounded-lg hover:bg-neon-green-dark transition-colors duration-200 uppercase disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
-                  <span className="flex items-center gap-2">
+                  <span className="flex items-center justify-center gap-2">
                     <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
