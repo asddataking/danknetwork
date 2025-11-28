@@ -95,7 +95,7 @@ export default function MapContainer() {
 
   const handlePlaceSelect = (place: Place) => {
     setSelectedPlace(place);
-    // Scroll to place in list if in split/list view
+    // Scroll to place in list if in split/list view (only on selection, not hover)
     if (viewMode === 'split' || viewMode === 'list') {
       const element = document.getElementById(`place-${place.id}`);
       if (element) {
@@ -104,15 +104,7 @@ export default function MapContainer() {
     }
   };
 
-  // Scroll to hovered place in list
-  useEffect(() => {
-    if (hoveredPlace && (viewMode === 'split' || viewMode === 'list')) {
-      const element = document.getElementById(`place-${hoveredPlace.id}`);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    }
-  }, [hoveredPlace, viewMode]);
+  // Note: Removed scrollIntoView for hover - we only highlight now, no scrolling
 
   return (
     <div className="flex flex-col h-full bg-black">

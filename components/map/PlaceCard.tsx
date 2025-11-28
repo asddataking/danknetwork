@@ -34,9 +34,9 @@ export default function PlaceCard({ place, isSelected, isHovered, onSelect }: Pl
       onClick={handleCardClick}
       className={`bg-dark-surface rounded-lg border-2 p-2 sm:p-2.5 cursor-pointer transition-all duration-200 ${
         isSelected
-          ? 'border-neon-green shadow-lg shadow-neon-green/30'
+          ? 'border-neon-green shadow-lg shadow-neon-green/30 bg-neon-green/5'
           : isHovered
-          ? 'border-neon-green shadow-lg shadow-neon-green/50 ring-2 ring-neon-green/30'
+          ? 'border-neon-green shadow-lg shadow-neon-green/50 ring-2 ring-neon-green/30 bg-neon-green/10'
           : 'border-neon-green/30 hover:border-neon-green/60'
       }`}
     >

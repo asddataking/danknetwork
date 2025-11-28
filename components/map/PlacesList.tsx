@@ -47,8 +47,8 @@ export default function PlacesList({ places, selectedPlace, hoveredPlace, onPlac
           return (
             <div
               key={place.id}
-              id={`place-list-${place.id}`}
-              className={isHovered ? 'transform scale-[1.02] sm:scale-105 transition-transform duration-200 z-10' : 'transition-transform duration-200'}
+              id={`place-${place.id}`}
+              className={isHovered ? 'transition-all duration-200' : 'transition-all duration-200'}
             >
               <PlaceCard
                 place={place}
