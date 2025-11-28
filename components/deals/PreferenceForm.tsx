@@ -102,7 +102,7 @@ export default function PreferenceForm() {
       {/* Email */}
       <div>
         <label htmlFor="email" className="block text-white font-medium mb-2">
-          Email Address *
+          Email Address <span className="text-red-400" aria-label="required">*</span>
         </label>
         <input
           type="email"
@@ -112,13 +112,16 @@ export default function PreferenceForm() {
           onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
           className="w-full px-4 py-2 bg-dark-surface border border-neon-green/20 rounded-lg text-white focus:outline-none focus:border-neon-green"
           placeholder="your@email.com"
+          aria-required="true"
+          aria-describedby="email-description"
         />
+        <span id="email-description" className="sr-only">Your email address is required</span>
       </div>
 
       {/* ZIP Code */}
       <div>
         <label htmlFor="zip" className="block text-white font-medium mb-2">
-          ZIP Code *
+          ZIP Code <span className="text-red-400" aria-label="required">*</span>
         </label>
         <input
           type="text"
@@ -129,8 +132,11 @@ export default function PreferenceForm() {
           className="w-full px-4 py-2 bg-dark-surface border border-neon-green/20 rounded-lg text-white focus:outline-none focus:border-neon-green"
           placeholder="48060"
           maxLength={5}
+          pattern="[0-9]{5}"
+          aria-required="true"
+          aria-describedby="zip-description"
         />
-        <p className="text-gray-400 text-sm mt-1">We'll show you deals near your area</p>
+        <p id="zip-description" className="text-gray-400 text-sm mt-1">We'll show you deals near your area</p>
       </div>
 
       {/* Product Types */}
@@ -156,7 +162,7 @@ export default function PreferenceForm() {
           ))}
         </div>
         {formData.preferredProductTypes.length === 0 && (
-          <p className="text-red-400 text-sm mt-2">Please select at least one product type</p>
+          <p className="text-red-400 text-sm mt-2" role="alert" aria-live="polite">Please select at least one product type</p>
         )}
       </div>
 

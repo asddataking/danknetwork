@@ -7,7 +7,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Mail, Lock, User, Loader2 } from 'lucide-react';
 import { signIn, signUp, resetPassword } from '@/lib/auth/supabase';
@@ -26,6 +26,43 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'signin' }: AuthModal
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const modalRef = useRef<HTMLDivElement>(null);
+  const firstInputRef = useRef<HTMLInputElement>(null);
+
+  // Focus management and keyboard navigation
+  useEffect(() => {
+    if (isOpen) {
+      // Focus first input when modal opens
+      setTimeout(() => {
+        firstInputRef.current?.focus();
+      }, 100);
+
+      // Trap focus within modal
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          onClose();
+        }
+        if (e.key === 'Tab' && modalRef.current) {
+          const focusableElements = modalRef.current.querySelectorAll(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+          );
+          const firstElement = focusableElements[0] as HTMLElement;
+          const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+
+          if (e.shiftKey && document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement.focus();
+          } else if (!e.shiftKey && document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement.focus();
+          }
+        }
+      };
+
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isOpen, onClose]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,17 +111,16 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'signin' }: AuthModal
     }
   };
 
-  if (!isOpen) return null;
-
   return (
     <AnimatePresence>
-      <div 
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="auth-modal-title"
-        aria-describedby="auth-modal-description"
-      >
+      {isOpen && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="auth-modal-title"
+          aria-describedby="auth-modal-description"
+        >
         {/* Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -97,6 +133,7 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'signin' }: AuthModal
 
         {/* Modal */}
         <motion.div
+          ref={modalRef}
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -133,14 +170,16 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'signin' }: AuthModal
                   Full Name
                 </label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-subtle" />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-subtle" aria-hidden="true" />
                   <input
+                    ref={firstInputRef}
                     type="text"
                     id="fullName"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     className="w-full pl-10 pr-4 py-3 bg-brand-bg border border-brand-subtle/20 rounded-lg text-brand-ink focus:outline-none focus:border-brand-primary transition-colors"
                     placeholder="John Doe"
+                    autoComplete="name"
                   />
                 </div>
               </div>
@@ -151,8 +190,9 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'signin' }: AuthModal
                 Email
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-subtle" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-subtle" aria-hidden="true" />
                 <input
+                  ref={mode !== 'signup' ? firstInputRef : undefined}
                   type="email"
                   id="email"
                   required
@@ -160,6 +200,8 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'signin' }: AuthModal
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 bg-brand-bg border border-brand-subtle/20 rounded-lg text-brand-ink focus:outline-none focus:border-brand-primary transition-colors"
                   placeholder="your@email.com"
+                  autoComplete="email"
+                  aria-required="true"
                 />
               </div>
             </div>
@@ -170,7 +212,7 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'signin' }: AuthModal
                   Password
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-subtle" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-subtle" aria-hidden="true" />
                   <input
                     type="password"
                     id="password"
@@ -180,19 +222,25 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'signin' }: AuthModal
                     className="w-full pl-10 pr-4 py-3 bg-brand-bg border border-brand-subtle/20 rounded-lg text-brand-ink focus:outline-none focus:border-brand-primary transition-colors"
                     placeholder="••••••••"
                     minLength={6}
+                    autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+                    aria-required="true"
+                    aria-describedby="password-requirements"
                   />
                 </div>
+                <p id="password-requirements" className="text-xs text-brand-subtle mt-1">
+                  Password must be at least 6 characters
+                </p>
               </div>
             )}
 
             {error && (
-              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-500 text-sm">
+              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-500 text-sm" role="alert" aria-live="assertive">
                 {error}
               </div>
             )}
 
             {success && (
-              <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-green-500 text-sm">
+              <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-green-500 text-sm" role="status" aria-live="polite">
                 {success}
               </div>
             )}
@@ -244,4 +292,10 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'signin' }: AuthModal
               </button>
             )}
           </div>
-        </motio
+        </motion.div>
+      </div>
+      )}
+    </AnimatePresence>
+  );
+}
+

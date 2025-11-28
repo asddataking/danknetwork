@@ -55,12 +55,21 @@ export const metadata: Metadata = {
     siteName: 'Dank Network',
     title: 'Dank Network — Michigan\'s Home for Dank Content & Rewards',
     description: 'Dank Network is Michigan\'s home for dank content and next-level rewards. We bring together food reviews, cannabis culture, local adventures, daily deals, and creator-driven entertainment—all inside one connected universe. Powered by our Earn & Burn™ Rewards, fans can watch content, complete challenges, upload receipts, and unlock perks from restaurants, dispensaries, and local businesses statewide.',
+    images: [
+      {
+        url: '/og-image.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'Dank Network - Michigan\'s Home for Dank Content & Rewards',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Dank Network — Michigan\'s Home for Dank Content & Rewards',
     description: 'Discover Michigan\'s hub for dank content, food reviews, cannabis culture, and the Earn & Burn rewards system. Watch, earn points, and unlock local perks.',
     creator: '@DankNetwork',
+    images: ['/og-image.jpg'],
   },
   robots: {
     index: true,
@@ -97,9 +106,12 @@ export default function RootLayout({
       </head>
       <body className={`${inter.className} bg-black min-h-screen flex flex-col`}>
         <PwaProvider />
+        <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-neon-green focus:text-black focus:font-bold focus:rounded-lg">
+          Skip to main content
+        </a>
         <Header />
         <div className="flex flex-1">
-          <main className="flex-1 pb-20 lg:pb-0 overflow-x-hidden">
+          <main id="main-content" className="flex-1 pb-20 lg:pb-0 overflow-x-hidden">
             {children}
           </main>
           <Sidebar />
