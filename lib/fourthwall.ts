@@ -193,6 +193,18 @@ class FourthwallClient {
               available: v.available !== false && v.inventory_quantity !== 0,
             }));
 
+            // Determine availability - handle both 'available' and 'inStock' fields
+            let available = true;
+            if (product?.inStock !== undefined) {
+              available = product.inStock !== false;
+            } else if (product?.available !== undefined) {
+              available = product.available !== false;
+            } else if (item.in_stock !== undefined) {
+              available = item.in_stock !== false;
+            } else if (variants.length > 0) {
+              available = variants.some((v: any) => v.available !== false) !== false;
+            }
+
             // Build product from raw_data or individual fields
             const transformed: FourthwallProduct = {
               id: product?.id || item.product_id || '',
@@ -201,7 +213,7 @@ class FourthwallClient {
               price: price,
               compareAtPrice: compareAtPrice,
               images: images,
-              available: item.in_stock !== false && (product?.available !== false && product?.inStock !== false),
+              available: available,
               variants: variants,
               checkoutUrl: product?.checkoutUrl || item.checkout_url || '',
               collection: product?.collection || item.category || 'General',
@@ -328,52 +340,40 @@ class FourthwallClient {
         return freshCachedProducts;
       }
 
-      // If no fresh cache, try JSON feed first, then Storefront API as fallback
-      console.log('[FourthwallClient] No fresh cache, fetching from JSON feed...');
+      // Check for stale cache before trying feed (since feed often returns 403)
+      // This ensures we return cached products even if feed is unavailable
+      const staleCachedProducts = await this.getCachedProducts({ ...options, allowStale: true });
+      if (staleCachedProducts && staleCachedProducts.length > 0) {
+        console.log(`[FourthwallClient] Using ${staleCachedProducts.length} stale cached products`);
+        console.log(`[FourthwallClient] Note: JSON feed may be unavailable (403), using cached products as fallback`);
+        return staleCachedProducts;
+      }
+
+      // If no cache at all, try JSON feed
+      console.log('[FourthwallClient] No cache found, fetching from JSON feed...');
       let jsonFeedProducts: FourthwallProduct[] = [];
       
       try {
         jsonFeedProducts = await this.getProductsFromFeed(options);
         console.log(`[FourthwallClient] JSON feed returned ${jsonFeedProducts.length} products`);
+        if (jsonFeedProducts.length > 0) {
+          return jsonFeedProducts;
+        }
       } catch (feedError: any) {
         console.warn('[FourthwallClient] JSON feed failed:', feedError.message);
-        jsonFeedProducts = [];
-      }
-      
-      // If JSON feed failed or returned 0 products, try Storefront API as fallback
-      if (jsonFeedProducts.length === 0) {
-        if (this.storefrontToken) {
-          console.log('[FourthwallClient] JSON feed failed/empty, trying Storefront API as fallback...');
-          console.log('[FourthwallClient] Storefront token available:', !!this.storefrontToken);
-          try {
-            const storefrontProducts = await this.getProductsFromStorefrontAPI(options);
-            if (storefrontProducts && storefrontProducts.length > 0) {
-              console.log(`[FourthwallClient] Storefront API returned ${storefrontProducts.length} products`);
-              return storefrontProducts;
-            } else {
-              console.warn('[FourthwallClient] Storefront API returned 0 products');
-            }
-          } catch (storefrontError: any) {
-            console.error('[FourthwallClient] Storefront API failed:', storefrontError.message);
-            console.error('[FourthwallClient] Storefront API error details:', storefrontError);
-          }
-        } else {
-          console.warn('[FourthwallClient] JSON feed failed/empty, but no Storefront token available');
+        // If it's a 403, this is expected for private shops
+        if (feedError.message?.includes('403') || feedError.message?.includes('Forbidden')) {
+          console.warn('[FourthwallClient] JSON feed is returning 403 Forbidden - shop may be private or feed URL not publicly accessible');
+          console.warn('[FourthwallClient] To fix: Make sure products are cached manually using /api/fourthwall/refresh-cache');
         }
       }
       
-      if (jsonFeedProducts.length === 0) {
-        console.warn('[FourthwallClient] Both JSON feed and Storefront API returned 0 products');
-        console.warn('[FourthwallClient] Check the debug endpoint at /api/fourthwall/debug to see raw feed data');
-        // Try stale cache as last resort
-        const staleCachedProducts = await this.getCachedProducts({ ...options, allowStale: true });
-        if (staleCachedProducts && staleCachedProducts.length > 0) {
-          console.log(`[FourthwallClient] All feeds failed, using ${staleCachedProducts.length} stale cached products`);
-          return staleCachedProducts;
-        }
-      }
+      // If we get here, both feed and cache failed
+      console.warn('[FourthwallClient] Both JSON feed and cache returned 0 products');
+      console.warn('[FourthwallClient] Check the debug endpoint at /api/fourthwall/debug to see raw feed data');
+      console.warn('[FourthwallClient] Try manually refreshing cache: GET /api/fourthwall/refresh-cache');
       
-      return jsonFeedProducts;
+      return [];
     } catch (error) {
       console.error('[FourthwallClient] Error fetching products:', error);
       
@@ -633,9 +633,17 @@ class FourthwallClient {
               break;
             }
             
-            // For 403/404, try next URL pattern
-            if (testResponse.status === 403 || testResponse.status === 404) {
-              console.warn(`[FourthwallClient] Feed URL ${feedUrl} returned ${testResponse.status}, trying next pattern...`);
+            // For 403, this means the feed is not publicly accessible
+            if (testResponse.status === 403) {
+              console.warn(`[FourthwallClient] Feed URL ${feedUrl} returned 403 Forbidden - shop feed is not publicly accessible`);
+              console.warn(`[FourthwallClient] This is common for private shops. Products should be cached manually.`);
+              lastError = new Error(`Feed access forbidden (403) - shop may be private`);
+              continue;
+            }
+            
+            // For 404, try next URL pattern
+            if (testResponse.status === 404) {
+              console.warn(`[FourthwallClient] Feed URL ${feedUrl} returned 404, trying next pattern...`);
               continue;
             }
             
@@ -888,7 +896,7 @@ class FourthwallClient {
         price,
         compareAtPrice,
         images,
-        available: product.available !== false && product.inventory_quantity !== 0,
+        available: (product.inStock !== undefined ? product.inStock !== false : product.available !== false) && product.inventory_quantity !== 0,
         variants: product.variants?.map((v: any) => ({
           id: v.id?.toString() || '',
           title: v.title || v.name || 'Default',
@@ -969,8 +977,18 @@ class FourthwallClient {
             available: v.available !== false && v.inventory_quantity !== 0,
           }));
 
-          // Determine availability
-          const available = product.variants?.some((v: any) => v.available !== false && v.inventory_quantity !== 0) !== false;
+          // Determine availability - handle both 'available' and 'inStock' fields
+          let available = true;
+          if (product.inStock !== undefined) {
+            available = product.inStock !== false;
+          } else if (product.available !== undefined) {
+            available = product.available !== false;
+          } else if (product.variants && product.variants.length > 0) {
+            available = product.variants.some((v: any) => 
+              (v.available !== false && v.inventory_quantity !== 0) ||
+              (v.inStock !== false)
+            ) !== false;
+          }
 
           // Build checkout URL - use product URL if available, otherwise construct it
           let checkoutUrl = '';

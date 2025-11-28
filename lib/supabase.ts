@@ -393,6 +393,9 @@ export class PlacesService {
         return null;
       }
 
+      // Normalize slug - trim and lowercase for matching
+      const normalizedSlug = slug.trim().toLowerCase();
+
       // Try to find the place by slug (case-insensitive)
       // First try exact match
       let query = client
@@ -400,16 +403,137 @@ export class PlacesService {
         .select('*')
         .eq('slug', slug);
       
-      const { data, error } = await query.single();
+      const { data, error } = await query.maybeSingle();
+      
+      // If exact match found, use it
+      if (data && !error) {
+        const place: any = { ...data };
+        
+        // Extract coordinates from geography field
+        if (place.location && typeof place.location === 'object') {
+          if (place.location.coordinates && Array.isArray(place.location.coordinates) && place.location.coordinates.length >= 2) {
+            place.longitude = place.location.coordinates[0];
+            place.latitude = place.location.coordinates[1];
+          } else if (place.location.lng !== undefined && place.location.lat !== undefined) {
+            place.longitude = place.location.lng;
+            place.latitude = place.location.lat;
+          }
+        }
+
+        // Parse JSON fields if they're strings
+        if (typeof place.cuisines === 'string') {
+          try {
+            place.cuisines = JSON.parse(place.cuisines);
+          } catch (e) {
+            place.cuisines = place.cuisines ? [place.cuisines] : [];
+          }
+        }
+        if (typeof place.tags === 'string') {
+          try {
+            place.tags = JSON.parse(place.tags);
+          } catch (e) {
+            place.tags = place.tags ? [place.tags] : [];
+          }
+        }
+        if (typeof place.hours === 'string') {
+          try {
+            place.hours = JSON.parse(place.hours);
+          } catch (e) {
+            place.hours = {};
+          }
+        }
+
+        // Ensure arrays are arrays and required fields exist
+        if (!Array.isArray(place.cuisines)) place.cuisines = [];
+        if (!Array.isArray(place.tags)) place.tags = [];
+        if (!place.hours || typeof place.hours !== 'object') place.hours = {};
+        
+        // Ensure required fields have fallback values
+        if (!place.name) place.name = 'Unnamed Place';
+        if (!place.slug) place.slug = place.id || '';
+        if (typeof place.latitude !== 'number' || isNaN(place.latitude)) {
+          place.latitude = place.latitude || 0;
+        }
+        if (typeof place.longitude !== 'number' || isNaN(place.longitude)) {
+          place.longitude = place.longitude || 0;
+        }
+
+        console.log('[PlacesService] Found place by exact slug match:', { slug, placeId: place.id, name: place.name });
+        return place;
+      }
       
       // If exact match fails, try case-insensitive search
-      if (error && error.code === 'PGRST116') {
-        console.log('[PlacesService] Exact slug match failed, trying case-insensitive search');
-        const { data: caseInsensitiveData, error: caseError } = await client
+      console.log('[PlacesService] Exact slug match failed, trying case-insensitive search for:', slug);
+      const { data: caseInsensitiveData, error: caseError } = await client
+        .from('places')
+        .select('*')
+        .ilike('slug', `%${normalizedSlug}%`)
+        .maybeSingle();
+      
+      // If that doesn't work, try exact case-insensitive match
+      if ((!caseInsensitiveData || caseError) && normalizedSlug !== slug.toLowerCase()) {
+        const { data: exactCaseInsensitiveData } = await client
           .from('places')
           .select('*')
           .ilike('slug', slug)
           .maybeSingle();
+        
+        if (exactCaseInsensitiveData) {
+          const place: any = { ...exactCaseInsensitiveData };
+          
+          // Extract coordinates from geography field
+          if (place.location && typeof place.location === 'object') {
+            if (place.location.coordinates && Array.isArray(place.location.coordinates) && place.location.coordinates.length >= 2) {
+              place.longitude = place.location.coordinates[0];
+              place.latitude = place.location.coordinates[1];
+            } else if (place.location.lng !== undefined && place.location.lat !== undefined) {
+              place.longitude = place.location.lng;
+              place.latitude = place.location.lat;
+            }
+          }
+
+          // Parse JSON fields if they're strings
+          if (typeof place.cuisines === 'string') {
+            try {
+              place.cuisines = JSON.parse(place.cuisines);
+            } catch (e) {
+              place.cuisines = place.cuisines ? [place.cuisines] : [];
+            }
+          }
+          if (typeof place.tags === 'string') {
+            try {
+              place.tags = JSON.parse(place.tags);
+            } catch (e) {
+              place.tags = place.tags ? [place.tags] : [];
+            }
+          }
+          if (typeof place.hours === 'string') {
+            try {
+              place.hours = JSON.parse(place.hours);
+            } catch (e) {
+              place.hours = {};
+            }
+          }
+
+          // Ensure arrays are arrays and required fields exist
+          if (!Array.isArray(place.cuisines)) place.cuisines = [];
+          if (!Array.isArray(place.tags)) place.tags = [];
+          if (!place.hours || typeof place.hours !== 'object') place.hours = {};
+          
+          // Ensure required fields have fallback values
+          if (!place.name) place.name = 'Unnamed Place';
+          if (!place.slug) place.slug = place.id || '';
+          if (typeof place.latitude !== 'number' || isNaN(place.latitude)) {
+            place.latitude = place.latitude || 0;
+          }
+          if (typeof place.longitude !== 'number' || isNaN(place.longitude)) {
+            place.longitude = place.longitude || 0;
+          }
+
+          console.log('[PlacesService] Found place by case-insensitive slug:', { slug, placeId: place.id, name: place.name, actualSlug: place.slug });
+          return place;
+        }
+      }
         
         if (!caseError && caseInsensitiveData) {
           const place: any = { ...caseInsensitiveData };

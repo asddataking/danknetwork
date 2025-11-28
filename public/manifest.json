@@ -1,7 +1,7 @@
 {
-  "name": "Dank Network",
+  "name": "Dank Network — Michigan's Home for Dank Content & Rewards",
   "short_name": "DankNetwork",
-  "description": "Dank Network is a local Michigan media brand for food, weed, and sports – featuring Dank'N'Devour, Dank Recipes, Dank Sports, and DankPass rewards.",
+  "description": "Discover Michigan's hub for dank content, food reviews, cannabis culture, and the Earn & Burn rewards system. Watch, earn points, and unlock local perks.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#050709",

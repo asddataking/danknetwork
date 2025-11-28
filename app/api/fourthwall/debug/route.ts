@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { fourthwallClient } from '@/lib/fourthwall';
+import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -42,6 +43,63 @@ export async function GET() {
       }
     } catch (error: any) {
       fetchError = {
+        message: error.message,
+        stack: error.stack,
+      };
+    }
+
+    // Check cache status directly
+    let cacheStatus: any = {
+      accessible: false,
+      totalCount: 0,
+      nonExpiredCount: 0,
+      expiredCount: 0,
+      sampleProducts: [],
+      error: null,
+    };
+
+    try {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      
+      if (supabaseUrl && supabaseAnonKey) {
+        const supabase = createClient(supabaseUrl, supabaseAnonKey);
+        const now = new Date().toISOString();
+        
+        // Get total count
+        const { count: totalCount } = await supabase
+          .from('products_cache')
+          .select('*', { count: 'exact', head: true });
+        
+        // Get non-expired count
+        const { count: nonExpiredCount } = await supabase
+          .from('products_cache')
+          .select('*', { count: 'exact', head: true })
+          .gt('expires_at', now);
+        
+        // Get expired count
+        const { count: expiredCount } = await supabase
+          .from('products_cache')
+          .select('*', { count: 'exact', head: true })
+          .lte('expires_at', now);
+        
+        // Get sample products (including expired)
+        const { data: sampleData } = await supabase
+          .from('products_cache')
+          .select('product_id, name, price, category, in_stock, expires_at, updated_at')
+          .order('updated_at', { ascending: false })
+          .limit(5);
+        
+        cacheStatus = {
+          accessible: true,
+          totalCount: totalCount || 0,
+          nonExpiredCount: nonExpiredCount || 0,
+          expiredCount: expiredCount || 0,
+          sampleProducts: sampleData || [],
+        };
+      }
+    } catch (error: any) {
+      cacheStatus.error = {
         message: error.message,
         stack: error.stack,
       };
@@ -129,6 +187,7 @@ export async function GET() {
         firstProductKeys: rawData?.products?.[0] ? Object.keys(rawData.products[0]) : (Array.isArray(rawData) && rawData[0] ? Object.keys(rawData[0]) : []),
         firstProductSample: rawData?.products?.[0] || (Array.isArray(rawData) ? rawData[0] : null),
       },
+      cacheStatus,
       clientProducts: {
         count: clientProducts.length,
         products: clientProducts.slice(0, 3), // First 3 products
