@@ -5,9 +5,10 @@ import { Place, PlacesQueryParams } from '@/types/place';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.supabase_url || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.supabase_anon_key || '';
 // Support multiple naming conventions for service role key
+// Primary: SUPABASE_SERVICE_ROLE_KEY (standard naming)
 const supabaseServiceKey = 
-  process.env.SUPABASE_SECRET_SERVICE_ROLE_KEY || 
   process.env.SUPABASE_SERVICE_ROLE_KEY || 
+  process.env.SUPABASE_SECRET_SERVICE_ROLE_KEY || 
   process.env.supabase_service_role_key || 
   process.env.supabase_secret_service_role_key || 
   '';

@@ -36,7 +36,7 @@ export default async function PlacePage({ params }: PlacePageProps) {
   console.log('[PlacePage] Fetching place with slug:', slug);
   console.log('[PlacePage] Environment check:', {
     hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-    hasServiceKey: !!(process.env.SUPABASE_SECRET_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY),
+    hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
   });
   
   try {
