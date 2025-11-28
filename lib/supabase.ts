@@ -4,8 +4,13 @@ import { Place, PlacesQueryParams } from '@/types/place';
 // Support both naming conventions: NEXT_PUBLIC_* (standard) and supabase_* (local dev)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.supabase_url || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.supabase_anon_key || '';
-// Support both SUPABASE_SECRET_SERVICE_ROLE_KEY and SUPABASE_SERVICE_ROLE_KEY
-const supabaseServiceKey = process.env.SUPABASE_SECRET_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+// Support multiple naming conventions for service role key
+const supabaseServiceKey = 
+  process.env.SUPABASE_SECRET_SERVICE_ROLE_KEY || 
+  process.env.SUPABASE_SERVICE_ROLE_KEY || 
+  process.env.supabase_service_role_key || 
+  process.env.supabase_secret_service_role_key || 
+  '';
 
 // Create Supabase clients only if credentials are available
 let supabase: SupabaseClient | null = null;
@@ -427,13 +432,14 @@ export class PlacesService {
 
       // Normalize slug - trim and lowercase for matching
       const normalizedSlug = slug.trim().toLowerCase();
+      const trimmedSlug = slug.trim();
 
       // Try to find the place by slug (case-insensitive)
-      // First try exact match
+      // First try exact match with original slug
       let query = client
         .from('places')
         .select('*')
-        .eq('slug', slug);
+        .eq('slug', trimmedSlug);
       
       const { data, error } = await query.maybeSingle();
       
@@ -498,12 +504,12 @@ export class PlacesService {
         return place;
       }
       
-      // If exact match fails, try case-insensitive search
+      // If exact match fails, try case-insensitive search using normalized slug
       console.log('[PlacesService] Exact slug match failed, trying case-insensitive search for:', slug);
       const { data: caseInsensitiveData, error: caseError } = await client
         .from('places')
         .select('*')
-        .ilike('slug', slug)
+        .ilike('slug', normalizedSlug)
         .maybeSingle();
       
       // If case-insensitive match found, use it

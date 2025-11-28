@@ -72,7 +72,14 @@ export default function MapContainer() {
           setFilteredPlaces(placesWithCoords);
         } else {
           const errorData = await response.json().catch(() => ({}));
-          console.error('[MapContainer] API error:', response.status, errorData);
+          console.error('[MapContainer] API error:', response.status);
+          console.error('[MapContainer] Error details:', JSON.stringify(errorData, null, 2));
+          if (errorData.error) {
+            console.error('[MapContainer] Error message:', errorData.error);
+          }
+          if (errorData.details) {
+            console.error('[MapContainer] Error details (dev):', errorData.details);
+          }
           setPlaces([]);
           setFilteredPlaces([]);
         }

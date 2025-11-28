@@ -94,7 +94,11 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   userScalable: true,
-  themeColor: '#00ff00',
+  viewportFit: 'cover', // For iPhone notch support
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#000000' },
+    { media: '(prefers-color-scheme: dark)', color: '#000000' },
+  ],
 };
 
 export default function RootLayout({
@@ -106,7 +110,22 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#00ff00" />
+        <link rel="icon" href="/icons/DankNetwork.png.png" />
+        <link rel="apple-touch-icon" href="/icons/DankNetwork.png.png" />
+        
+        {/* iOS-specific meta tags for app-like experience */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="Dank Network" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        
+        {/* Theme colors */}
+        <meta name="theme-color" content="#000000" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+        <meta name="msapplication-TileColor" content="#000000" />
+        
+        {/* Prevent automatic phone number detection on iOS */}
+        <meta name="format-detection" content="telephone=no" />
       </head>
       <body className={`${inter.className} bg-black min-h-screen flex flex-col`}>
         <PwaProvider />

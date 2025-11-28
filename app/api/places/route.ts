@@ -8,13 +8,14 @@ export const revalidate = 0;
 
 export async function GET(request: Request) {
   try {
-    // Check if Supabase is configured
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    // Check if Supabase is configured - support both naming conventions
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.supabase_url;
     if (!supabaseUrl) {
       console.error('[API] Supabase environment variables not configured');
+      console.error('[API] Checked for: NEXT_PUBLIC_SUPABASE_URL, supabase_url');
       return NextResponse.json({ 
         places: [],
-        error: 'Supabase not configured. Please set NEXT_PUBLIC_SUPABASE_URL in Vercel environment variables.'
+        error: 'Supabase not configured. Please set NEXT_PUBLIC_SUPABASE_URL or supabase_url in environment variables.'
       }, { status: 500 });
     }
 
@@ -64,6 +65,11 @@ export async function GET(request: Request) {
           }
         } catch (searchError) {
           console.warn('[API] searchPlaces failed, using getPlacesSimple:', searchError);
+          console.warn('[API] Search error details:', searchError instanceof Error ? {
+            message: searchError.message,
+            stack: searchError.stack,
+            name: searchError.name
+          } : String(searchError));
           places = await PlacesService.getPlacesSimple();
         }
       }
@@ -71,6 +77,11 @@ export async function GET(request: Request) {
       console.log(`[API] Direct query returned ${places.length} places`);
     } catch (error) {
       console.error('[API] Error fetching places:', error);
+      console.error('[API] Error details:', error instanceof Error ? {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      } : String(error));
       places = [];
     }
 
@@ -82,9 +93,16 @@ export async function GET(request: Request) {
     return NextResponse.json({ places: validPlaces });
   } catch (error) {
     console.error('[API] Error fetching places:', error);
+    const errorDetails = error instanceof Error ? {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    } : String(error);
+    console.error('[API] Full error details:', errorDetails);
     return NextResponse.json({ 
       places: [],
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
+      details: process.env.NODE_ENV === 'development' ? errorDetails : undefined
     }, { status: 500 });
   }
 }

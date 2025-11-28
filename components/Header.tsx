@@ -5,7 +5,7 @@ import Image from 'next/image';
 
 export default function Header() {
   return (
-    <header className="sticky top-0 z-50 bg-black border-b border-neon-green/20">
+    <header className="sticky top-0 z-50 bg-black border-b border-neon-green/20 pt-safe-top">
       <div className="px-3 sm:px-4 md:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14 sm:h-16">
           {/* Logo with Image */}

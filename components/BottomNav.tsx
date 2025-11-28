@@ -7,7 +7,7 @@ export default function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-dark-surface/95 backdrop-blur-md border-t border-neon-green/30 shadow-lg shadow-black/20 md:hidden" aria-label="Bottom navigation">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-dark-surface/95 backdrop-blur-md border-t border-neon-green/30 shadow-lg shadow-black/20 md:hidden pb-safe-bottom" aria-label="Bottom navigation">
       <div className="flex items-center justify-around h-16">
         <Link
           href="/"

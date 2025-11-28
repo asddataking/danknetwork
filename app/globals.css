@@ -13,6 +13,42 @@ body {
   color: var(--foreground);
   background: var(--background);
   min-height: 100vh;
+  /* Prevent pull-to-refresh on iOS (optional) */
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Safe area insets for iPhone notches - only applies on devices that support it */
+@supports (padding: max(0px)) {
+  body {
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+  
+  /* Header safe area - only on mobile */
+  @media (max-width: 768px) {
+    header {
+      padding-top: max(0px, env(safe-area-inset-top, 0px));
+    }
+  }
+  
+  /* Bottom nav safe area - only on mobile */
+  nav[aria-label="Bottom navigation"] {
+    padding-bottom: max(0px, env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Better touch targets for mobile */
+@media (max-width: 768px) {
+  button, a {
+    -webkit-tap-highlight-color: rgba(0, 255, 0, 0.2);
+    touch-action: manipulation;
+  }
+}
+
+/* Prevent text size adjustment on iOS */
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
 @layer utilities {

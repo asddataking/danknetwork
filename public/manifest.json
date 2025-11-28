@@ -4,9 +4,11 @@
   "description": "Discover Michigan's hub for dank content, food reviews, cannabis culture, and the Earn & Burn rewards system. Watch, earn points, and unlock local perks.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#050709",
-  "theme_color": "#0fb9c9",
+  "display_override": ["standalone", "fullscreen"],
+  "background_color": "#000000",
+  "theme_color": "#000000",
   "orientation": "portrait-primary",
+  "scope": "/",
   "icons": [
     {
       "src": "/icons/DankNetwork.png.png",
@@ -20,6 +22,7 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "prefer_related_applications": false
 }
 
