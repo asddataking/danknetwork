@@ -531,7 +531,8 @@ export class PlacesService {
       // If both exact and case-insensitive matches failed, try ID fallback
       if (error || caseError) {
         // If slug lookup fails, try to find by ID (in case slug is actually an ID)
-        console.warn('[PlacesService] Slug lookup failed, trying ID fallback:', error.message);
+        const errorMsg = error?.message || caseError?.message || 'Unknown error';
+        console.warn('[PlacesService] Slug lookup failed, trying ID fallback:', errorMsg);
         const idQuery = client
           .from('places')
           .select('*')
@@ -541,7 +542,7 @@ export class PlacesService {
         const { data: idData, error: idError } = await idQuery;
         
         if (idError || !idData) {
-          console.error('[PlacesService] Both slug and ID lookup failed:', { slug, slugError: error.message, idError: idError?.message });
+          console.error('[PlacesService] Both slug and ID lookup failed:', { slug, slugError: error?.message || caseError?.message || 'Unknown error', idError: idError?.message });
           return null;
         }
         
