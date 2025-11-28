@@ -735,6 +735,37 @@ class FourthwallClient {
   }
 
   /**
+   * Helper function to parse price - handles both cents and dollars
+   * Used by both transformProducts and transformProductsFromFeed
+   */
+  private parsePrice(priceValue: any): number {
+    if (priceValue == null) return 0;
+    
+    if (typeof priceValue === 'number') {
+      // If number > 1000, likely in cents (e.g., 2999 = $29.99)
+      return priceValue > 1000 ? priceValue / 100 : priceValue;
+    }
+    
+    if (typeof priceValue === 'string') {
+      const parsed = parseFloat(priceValue);
+      if (isNaN(parsed)) return 0;
+      
+      // If string contains a decimal point, it's already in dollars (e.g., "29.99")
+      // If no decimal point and > 100, likely in cents (e.g., "2999")
+      if (priceValue.includes('.')) {
+        return parsed;
+      } else if (parsed > 100) {
+        return parsed / 100;
+      } else {
+        // Small numbers without decimals might be dollars already
+        return parsed;
+      }
+    }
+    
+    return 0;
+  }
+
+  /**
    * Transform Storefront API products to our format
    * Storefront API format may vary, handle both formats
    */
@@ -743,35 +774,50 @@ class FourthwallClient {
       // Handle price - could be in cents or dollars
       let price = 0;
       if (product.price) {
-        price = typeof product.price === 'string' 
-          ? parseFloat(product.price) 
-          : product.price;
-        // If price > 1000, assume it's in cents
-        if (price > 1000) price = price / 100;
+        price = this.parsePrice(product.price);
       } else if (product.variants?.[0]?.price) {
-        price = typeof product.variants[0].price === 'string'
-          ? parseFloat(product.variants[0].price)
-          : product.variants[0].price;
-        if (price > 1000) price = price / 100;
+        price = this.parsePrice(product.variants[0].price);
+      }
+
+      // Handle compare at price
+      let compareAtPrice: number | undefined = undefined;
+      if (product.compareAtPrice) {
+        compareAtPrice = this.parsePrice(product.compareAtPrice);
+      } else if (product.variants?.[0]?.compare_at_price) {
+        compareAtPrice = this.parsePrice(product.variants[0].compare_at_price);
       }
 
       // Handle images - could be array of strings or objects, or single image
       let images: string[] = [];
       if (product.images) {
-        images = Array.isArray(product.images) 
-          ? product.images.map((img: any) => {
-              if (typeof img === 'string') return img;
-              return img.src || img.url || img;
-            })
-          : [product.images];
+        if (Array.isArray(product.images)) {
+          images = product.images.map((img: any) => {
+            if (typeof img === 'string') return img;
+            // Handle various image object formats
+            if (img && typeof img === 'object') {
+              return img.src || img.url || img.original || img.large || img.medium || img.small || '';
+            }
+            return '';
+          }).filter(Boolean);
+        } else if (typeof product.images === 'string') {
+          images = [product.images];
+        } else if (product.images && typeof product.images === 'object') {
+          const img = product.images.src || product.images.url || product.images.original || '';
+          if (img) images = [img];
+        }
       } else if (product.image) {
         // Handle single image (could be string or object)
-        const imageUrl = typeof product.image === 'string' 
-          ? product.image 
-          : product.image.src || product.image.url || product.image;
-        if (imageUrl) {
-          images = [imageUrl];
+        if (typeof product.image === 'string') {
+          images = [product.image];
+        } else if (product.image && typeof product.image === 'object') {
+          const img = product.image.src || product.image.url || product.image.original || '';
+          if (img) images = [img];
         }
+      } else if (product.featured_image) {
+        // Some feeds use featured_image
+        images = typeof product.featured_image === 'string' 
+          ? [product.featured_image]
+          : (product.featured_image?.src ? [product.featured_image.src] : []);
       }
 
       // Handle checkout URL
@@ -792,26 +838,15 @@ class FourthwallClient {
         title: product.title || product.name || 'Untitled Product',
         handle: product.handle || product.slug || '',
         price,
-        compareAtPrice: product.compareAtPrice 
-          ? (typeof product.compareAtPrice === 'string' 
-              ? parseFloat(product.compareAtPrice) 
-              : product.compareAtPrice) / (product.compareAtPrice > 1000 ? 100 : 1)
-          : undefined,
+        compareAtPrice,
         images,
         available: product.available !== false && product.inventory_quantity !== 0,
-        variants: product.variants?.map((v: any) => {
-          let variantPrice = 0;
-          if (v.price) {
-            variantPrice = typeof v.price === 'string' ? parseFloat(v.price) : v.price;
-            if (variantPrice > 1000) variantPrice = variantPrice / 100;
-          }
-          return {
-            id: v.id?.toString() || '',
-            title: v.title || v.name || 'Default',
-            price: variantPrice,
-            available: v.available !== false && v.inventory_quantity !== 0,
-          };
-        }) || [],
+        variants: product.variants?.map((v: any) => ({
+          id: v.id?.toString() || '',
+          title: v.title || v.name || 'Default',
+          price: this.parsePrice(v.price),
+          available: v.available !== false && v.inventory_quantity !== 0,
+        })) || [],
         checkoutUrl,
         collection: product.collection?.handle || product.collection || product.collection_id,
         description: product.description || product.body_html || '',
@@ -830,32 +865,18 @@ class FourthwallClient {
           // Handle different price formats (cents vs dollars)
           let price = 0;
           if (product.variants && product.variants.length > 0) {
-            const variantPrice = product.variants[0].price;
-            // If price is a string or number > 1000, assume it's in cents
-            if (typeof variantPrice === 'string') {
-              price = parseFloat(variantPrice) / 100;
-            } else if (typeof variantPrice === 'number') {
-              price = variantPrice > 1000 ? variantPrice / 100 : variantPrice;
-            }
+            price = this.parsePrice(product.variants[0].price);
           } else if (product.price) {
             // Some feeds have price directly on product
-            const productPrice = product.price;
-            if (typeof productPrice === 'string') {
-              price = parseFloat(productPrice) / 100;
-            } else if (typeof productPrice === 'number') {
-              price = productPrice > 1000 ? productPrice / 100 : productPrice;
-            }
+            price = this.parsePrice(product.price);
           }
 
           // Handle compare at price
           let compareAtPrice: number | undefined = undefined;
           if (product.variants?.[0]?.compare_at_price) {
-            const comparePrice = product.variants[0].compare_at_price;
-            if (typeof comparePrice === 'string') {
-              compareAtPrice = parseFloat(comparePrice) / 100;
-            } else if (typeof comparePrice === 'number') {
-              compareAtPrice = comparePrice > 1000 ? comparePrice / 100 : comparePrice;
-            }
+            compareAtPrice = this.parsePrice(product.variants[0].compare_at_price);
+          } else if (product.compare_at_price) {
+            compareAtPrice = this.parsePrice(product.compare_at_price);
           }
 
           // Handle images - can be array of objects with src, or array of strings, or single string
@@ -864,21 +885,39 @@ class FourthwallClient {
             if (Array.isArray(product.images)) {
               images = product.images.map((img: any) => {
                 if (typeof img === 'string') return img;
-                return img.src || img.url || img;
+                // Handle various image object formats
+                if (img && typeof img === 'object') {
+                  return img.src || img.url || img.original || img.large || img.medium || img.small || '';
+                }
+                return '';
               }).filter(Boolean);
             } else if (typeof product.images === 'string') {
               images = [product.images];
+            } else if (product.images && typeof product.images === 'object') {
+              // Handle single image object
+              const img = product.images.src || product.images.url || product.images.original || '';
+              if (img) images = [img];
             }
           } else if (product.image) {
             // Some feeds have single image field
-            images = [typeof product.image === 'string' ? product.image : (product.image.src || product.image.url || '')];
+            if (typeof product.image === 'string') {
+              images = [product.image];
+            } else if (product.image && typeof product.image === 'object') {
+              const img = product.image.src || product.image.url || product.image.original || '';
+              if (img) images = [img];
+            }
+          } else if (product.featured_image) {
+            // Some feeds use featured_image
+            images = typeof product.featured_image === 'string' 
+              ? [product.featured_image]
+              : (product.featured_image?.src ? [product.featured_image.src] : []);
           }
 
           // Handle variants
           const variants = (product.variants || []).map((v: any) => ({
             id: v.id?.toString() || v.sku || '',
             title: v.title || v.name || 'Default',
-            price: typeof v.price === 'number' ? (v.price > 1000 ? v.price / 100 : v.price) : parseFloat(v.price || 0) / 100,
+            price: this.parsePrice(v.price),
             available: v.available !== false && v.inventory_quantity !== 0,
           }));
 
