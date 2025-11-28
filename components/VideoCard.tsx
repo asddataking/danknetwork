@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, memo, useCallback } from 'react';
 import { Video } from '@/data/videos';
 import { useAppStore } from '@/lib/store';
 
@@ -21,26 +21,45 @@ const brandLabels: Record<string, string> = {
   sports: 'Dank Sports',
 };
 
-export default function VideoCard({ video, onOpen }: VideoCardProps) {
+function VideoCard({ video, onOpen }: VideoCardProps) {
   const { isLiked, isSaved, toggleLike, toggleSave } = useAppStore();
   const [showToast, setShowToast] = useState(false);
 
-  const handleShare = () => {
+  const handleShare = useCallback(() => {
     navigator.clipboard.writeText(`https://thedanknetwork.com/video/${video.id}`);
     setShowToast(true);
     setTimeout(() => setShowToast(false), 2000);
-  };
+  }, [video.id]);
+
+  const handleOpen = useCallback(() => {
+    onOpen(video);
+  }, [onOpen, video]);
+
+  const handleLike = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    toggleLike(video.id);
+  }, [toggleLike, video.id]);
+
+  const handleSave = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    toggleSave(video.id);
+  }, [toggleSave, video.id]);
+
+  const handleShareClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    handleShare();
+  }, [handleShare]);
 
   return (
     <div className="bg-dark-surface rounded-xl overflow-hidden border border-gray-800/50 hover:border-neon-green/60 transition-all duration-300 hover:shadow-xl hover:shadow-neon-green/10 hover:-translate-y-1 group/card animate-fade-in">
       {/* Thumbnail */}
       <div
         className="relative aspect-video bg-gray-900 cursor-pointer group overflow-hidden"
-        onClick={() => onOpen(video)}
+        onClick={handleOpen}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
-            onOpen(video);
+            handleOpen();
           }
         }}
         role="button"
@@ -111,10 +130,7 @@ export default function VideoCard({ video, onOpen }: VideoCardProps) {
         {/* Actions */}
         <div className="flex items-center justify-between pt-3 sm:pt-4 border-t border-gray-800/50" role="group" aria-label="Video actions">
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleLike(video.id);
-            }}
+            onClick={handleLike}
             aria-label={isLiked(video.id) ? `Unlike ${video.title}` : `Like ${video.title}`}
             aria-pressed={isLiked(video.id)}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-200 ${
@@ -130,10 +146,7 @@ export default function VideoCard({ video, onOpen }: VideoCardProps) {
           </button>
 
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleSave(video.id);
-            }}
+            onClick={handleSave}
             aria-label={isSaved(video.id) ? `Remove ${video.title} from saved` : `Save ${video.title}`}
             aria-pressed={isSaved(video.id)}
             className={`px-3 py-1.5 rounded-lg transition-all duration-200 ${
@@ -148,10 +161,7 @@ export default function VideoCard({ video, onOpen }: VideoCardProps) {
           </button>
 
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleShare();
-            }}
+            onClick={handleShareClick}
             aria-label={`Share ${video.title}`}
             className="text-gray-400 hover:text-neon-green px-3 py-1.5 rounded-lg hover:bg-neon-green/10 transition-all duration-200"
           >
@@ -171,4 +181,6 @@ export default function VideoCard({ video, onOpen }: VideoCardProps) {
     </div>
   );
 }
+
+export default memo(VideoCard);
 

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { FourthwallProduct } from '@/lib/fourthwall';
 
 export default function ShopShowcase() {
@@ -12,20 +11,18 @@ export default function ShopShowcase() {
   useEffect(() => {
     async function fetchProducts() {
       try {
-        console.log('[ShopShowcase] Fetching products...');
         const response = await fetch('/api/fourthwall/products?limit=4');
         const data = await response.json();
         
-        console.log('[ShopShowcase] API response:', data);
-        console.log('[ShopShowcase] Fetched products:', data.products?.length || 0);
-        
-        if (data.error) {
+        if (data.error && process.env.NODE_ENV === 'development') {
           console.error('[ShopShowcase] API error:', data.error);
         }
         
         setProducts(data.products || []);
       } catch (error) {
-        console.error('[ShopShowcase] Failed to fetch products:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[ShopShowcase] Failed to fetch products:', error);
+        }
       } finally {
         setLoading(false);
       }

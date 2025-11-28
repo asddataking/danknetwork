@@ -21,7 +21,10 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ videos });
   } catch (error) {
-    console.error('Error fetching YouTube videos:', error);
+    // Log error in development, but don't expose details in production
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error fetching YouTube videos:', error);
+    }
     return NextResponse.json({ videos: [] }, { status: 500 });
   }
 }

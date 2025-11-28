@@ -63,7 +63,9 @@ export default function PreferenceForm() {
       const substackUrl = 'https://dailydispodeals.substack.com/subscribe';
       window.location.href = substackUrl;
     } catch (error) {
-      console.error('Error saving preferences:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error saving preferences:', error);
+      }
       alert('Failed to save preferences. Please try again.');
       setLoading(false);
     }

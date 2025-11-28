@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback, memo } from 'react';
 import { Video, videos as staticVideos } from '@/data/videos';
 import VideoCard from './VideoCard';
 import VideoModal from './VideoModal';
@@ -13,7 +13,7 @@ interface VideoFeedProps {
   };
 }
 
-export default function VideoFeed({ initialVideos, filter }: VideoFeedProps) {
+function VideoFeed({ initialVideos, filter }: VideoFeedProps) {
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [displayCount, setDisplayCount] = useState(12);
   const [videos, setVideos] = useState<Video[]>(initialVideos || []);
@@ -38,7 +38,9 @@ export default function VideoFeed({ initialVideos, filter }: VideoFeedProps) {
           }
         }
       } catch (error) {
-        console.error('Error fetching YouTube videos:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Error fetching YouTube videos:', error);
+        }
       }
       // Fallback to static data if API fails
       setVideos(staticVideos);
@@ -59,23 +61,35 @@ export default function VideoFeed({ initialVideos, filter }: VideoFeedProps) {
     }
 
     return filtered;
-  }, [initialVideos, filter]);
+  }, [videos, initialVideos, filter]);
 
-  const displayedVideos = filteredVideos.slice(0, displayCount);
+  const displayedVideos = useMemo(() => filteredVideos.slice(0, displayCount), [filteredVideos, displayCount]);
   const hasMore = displayCount < filteredVideos.length;
+
+  const handleVideoOpen = useCallback((video: Video) => {
+    setSelectedVideo(video);
+  }, []);
+
+  const handleCloseModal = useCallback(() => {
+    setSelectedVideo(null);
+  }, []);
+
+  const handleLoadMore = useCallback(() => {
+    setDisplayCount((prev) => prev + 12);
+  }, []);
 
   return (
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {displayedVideos.map((video) => (
-          <VideoCard key={video.id} video={video} onOpen={setSelectedVideo} />
+          <VideoCard key={video.id} video={video} onOpen={handleVideoOpen} />
         ))}
       </div>
 
       {hasMore && (
         <div className="mt-8 text-center">
           <button
-            onClick={() => setDisplayCount((prev) => prev + 12)}
+            onClick={handleLoadMore}
             className="px-6 py-3 bg-neon-green text-black font-semibold rounded-lg hover:bg-neon-green-dark transition-colors"
           >
             Load More
@@ -90,9 +104,11 @@ export default function VideoFeed({ initialVideos, filter }: VideoFeedProps) {
       )}
 
       {selectedVideo && (
-        <VideoModal video={selectedVideo} onClose={() => setSelectedVideo(null)} />
+        <VideoModal video={selectedVideo} onClose={handleCloseModal} />
       )}
     </>
   );
 }
+
+export default memo(VideoFeed);
 

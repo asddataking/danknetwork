@@ -33,7 +33,9 @@ export default function HomePage() {
           }
         }
       } catch (error) {
-        console.error('Error fetching YouTube videos:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Error fetching YouTube videos:', error);
+        }
       }
       // Fallback to static data
       setVideos(staticVideos);
@@ -57,19 +59,19 @@ export default function HomePage() {
     return { vibe: selectedFilter };
   }, [selectedFilter]);
 
-  // Get featured episode (most recent)
-  const featuredEpisode = videos.length > 0
-    ? videos.sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )[0]
-    : staticVideos.sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )[0];
+  // Get featured episode (most recent) - memoized to avoid re-sorting
+  const featuredEpisode = useMemo(() => {
+    const source = videos.length > 0 ? videos : staticVideos;
+    return [...source].sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )[0];
+  }, [videos]);
 
-  // Get trending videos (most liked)
-  const trendingVideos = videos.length > 0
-    ? [...videos].sort((a, b) => b.likes - a.likes).slice(0, 4)
-    : [...staticVideos].sort((a, b) => b.likes - a.likes).slice(0, 4);
+  // Get trending videos (most liked) - memoized to avoid re-sorting
+  const trendingVideos = useMemo(() => {
+    const source = videos.length > 0 ? videos : staticVideos;
+    return [...source].sort((a, b) => b.likes - a.likes).slice(0, 4);
+  }, [videos]);
 
   // Structured data for SEO
   const organizationSchema = {
