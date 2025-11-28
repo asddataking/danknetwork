@@ -16,10 +16,31 @@ export default function PlaceDetail({ place }: PlaceDetailProps) {
   const [nearbyPlaces, setNearbyPlaces] = useState<Place[]>([]);
   const [loadingNearby, setLoadingNearby] = useState(true);
 
+  // Validate place data early
+  if (!place || !place.id || !place.name) {
+    console.error('[PlaceDetail] Invalid place data:', place);
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center px-4">
+        <div className="text-center max-w-md">
+          <h1 className="text-neon-green text-2xl mb-4">Invalid Place Data</h1>
+          <p className="text-gray-400 mb-6">
+            The place data is missing required information. Please try again.
+          </p>
+          <Link
+            href="/munchie-map"
+            className="bg-neon-green text-black px-6 py-3 rounded-lg font-bold uppercase hover:bg-neon-green-dark transition-colors inline-block"
+          >
+            Back to Map
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   useEffect(() => {
     // Fetch nearby places
     const fetchNearbyPlaces = async () => {
-      if (!place.latitude || !place.longitude) {
+      if (!place?.latitude || !place?.longitude || place.latitude === 0 || place.longitude === 0) {
         setLoadingNearby(false);
         return;
       }
@@ -46,6 +67,7 @@ export default function PlaceDetail({ place }: PlaceDetailProps) {
         }
       } catch (error) {
         console.error('Error fetching nearby places:', error);
+        // Don't show error to user for nearby places failure
       } finally {
         setLoadingNearby(false);
       }
@@ -54,21 +76,6 @@ export default function PlaceDetail({ place }: PlaceDetailProps) {
     fetchNearbyPlaces();
   }, [place]);
 
-  if (!place) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-neon-green text-2xl mb-4">Place not found</h1>
-          <Link
-            href="/munchie-map"
-            className="bg-neon-green text-black px-6 py-3 rounded-lg font-bold uppercase hover:bg-neon-green-dark transition-colors"
-          >
-            Back to Map
-          </Link>
-        </div>
-      </div>
-    );
-  }
 
   const isDispensary = place.tags?.includes('Dispensary') || place.cuisines?.includes('Cannabis');
   const placeType = isDispensary ? 'Dispensary' : 'Restaurant';

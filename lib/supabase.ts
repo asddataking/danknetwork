@@ -537,6 +537,14 @@ export class PlacesService {
         }
       }
 
+      // Ensure latitude/longitude are numbers (fallback to 0 if missing)
+      if (typeof place.latitude !== 'number' || isNaN(place.latitude)) {
+        place.latitude = place.latitude || 0;
+      }
+      if (typeof place.longitude !== 'number' || isNaN(place.longitude)) {
+        place.longitude = place.longitude || 0;
+      }
+
       // Parse JSON fields if they're strings
       if (typeof place.cuisines === 'string') {
         try {
@@ -560,12 +568,23 @@ export class PlacesService {
         }
       }
 
-      // Ensure arrays are arrays
+      // Ensure arrays are arrays and required fields exist
       if (!Array.isArray(place.cuisines)) place.cuisines = [];
       if (!Array.isArray(place.tags)) place.tags = [];
       if (!place.hours || typeof place.hours !== 'object') place.hours = {};
+      
+      // Ensure required fields have fallback values
+      if (!place.name) place.name = 'Unnamed Place';
+      if (!place.slug) place.slug = place.id || '';
 
-      console.log('[PlacesService] Fetched place by slug:', { slug, placeId: place.id, name: place.name, hasCuisines: !!place.cuisines, hasTags: !!place.tags });
+      console.log('[PlacesService] Fetched place by slug:', { 
+        slug, 
+        placeId: place.id, 
+        name: place.name, 
+        hasCuisines: !!place.cuisines, 
+        hasTags: !!place.tags,
+        hasLatLng: !!(place.latitude && place.longitude)
+      });
 
       return place;
     } catch (error) {
