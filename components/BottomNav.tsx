@@ -7,10 +7,12 @@ export default function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-dark-surface/95 backdrop-blur-md border-t border-neon-green/30 shadow-lg shadow-black/20 md:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-dark-surface/95 backdrop-blur-md border-t border-neon-green/30 shadow-lg shadow-black/20 md:hidden" aria-label="Bottom navigation">
       <div className="flex items-center justify-around h-16">
         <Link
           href="/"
+          aria-label="Home"
+          aria-current={pathname === '/' ? 'page' : undefined}
           className={`flex flex-col items-center justify-center flex-1 h-full transition-all duration-200 ${
             pathname === '/' 
               ? 'text-neon-green scale-110' 
@@ -26,6 +28,8 @@ export default function BottomNav() {
         </Link>
         <Link
           href="/#channels"
+          aria-label="Channels"
+          aria-current={(pathname.includes('danknddevour') || pathname.includes('recipes') || pathname.includes('sports')) ? 'page' : undefined}
           className={`flex flex-col items-center justify-center flex-1 h-full transition-all duration-200 ${
             pathname.includes('danknddevour') || pathname.includes('recipes') || pathname.includes('sports')
               ? 'text-neon-green scale-110'
@@ -41,6 +45,8 @@ export default function BottomNav() {
         </Link>
         <Link
           href="/saved"
+          aria-label="Saved videos"
+          aria-current={pathname === '/saved' ? 'page' : undefined}
           className={`flex flex-col items-center justify-center flex-1 h-full transition-all duration-200 ${
             pathname === '/saved' ? 'text-neon-green scale-110' : 'text-gray-400 hover:text-white hover:scale-105'
           }`}
@@ -52,9 +58,12 @@ export default function BottomNav() {
           </div>
           <span className={`text-xs mt-1 font-semibold ${pathname === '/saved' ? 'font-bold' : ''}`}>Saved</span>
         </Link>
-        <button className="flex flex-col items-center justify-center flex-1 h-full text-gray-400 hover:text-white transition-all duration-200 hover:scale-105">
+        <button 
+          aria-label="Profile"
+          className="flex flex-col items-center justify-center flex-1 h-full text-gray-400 hover:text-white transition-all duration-200 hover:scale-105"
+        >
           <div className="p-2 rounded-lg">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
           </div>

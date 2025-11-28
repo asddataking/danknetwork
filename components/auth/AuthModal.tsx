@@ -78,7 +78,13 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'signin' }: AuthModal
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div 
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="auth-modal-title"
+        aria-describedby="auth-modal-description"
+      >
         {/* Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -86,6 +92,7 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'signin' }: AuthModal
           exit={{ opacity: 0 }}
           className="absolute inset-0 bg-black/60 backdrop-blur-sm"
           onClick={onClose}
+          aria-hidden="true"
         />
 
         {/* Modal */}
@@ -99,18 +106,19 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'signin' }: AuthModal
           <button
             onClick={onClose}
             className="absolute top-4 right-4 text-brand-subtle hover:text-brand-ink transition-colors"
+            aria-label="Close modal"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
 
           {/* Header */}
           <div className="mb-6">
-            <h2 className="text-2xl font-bold text-brand-ink mb-2">
+            <h2 id="auth-modal-title" className="text-2xl font-bold text-brand-ink mb-2">
               {mode === 'signin' && 'Welcome Back'}
               {mode === 'signup' && 'Create Account'}
               {mode === 'reset' && 'Reset Password'}
             </h2>
-            <p className="text-brand-subtle">
+            <p id="auth-modal-description" className="text-brand-subtle">
               {mode === 'signin' && 'Sign in to access your account'}
               {mode === 'signup' && 'Join Dank Network to get started'}
               {mode === 'reset' && 'Enter your email to reset your password'}
@@ -236,9 +244,4 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'signin' }: AuthModal
               </button>
             )}
           </div>
-        </motion.div>
-      </div>
-    </AnimatePresence>
-  );
-}
-
+        </motio

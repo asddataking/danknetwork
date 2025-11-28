@@ -71,9 +71,34 @@ export default function HomePage() {
     ? [...videos].sort((a, b) => b.likes - a.likes).slice(0, 4)
     : [...staticVideos].sort((a, b) => b.likes - a.likes).slice(0, 4);
 
+  // Structured data for SEO
+  const organizationSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'Dank Network',
+    url: process.env.NEXT_PUBLIC_SITE_URL || 'https://www.thedanknetwork.com',
+    logo: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.thedanknetwork.com'}/logo.png`,
+    description: 'Michigan\'s home for dank content, food reviews, cannabis culture, and the Earn & Burn rewards system.',
+    sameAs: [
+      'https://www.youtube.com/@DankNetwork',
+      'https://twitter.com/DankNetwork',
+    ],
+    contactPoint: {
+      '@type': 'ContactPoint',
+      contactType: 'Customer Service',
+      email: 'support@thedanknetwork.com',
+    },
+  };
+
   return (
-    <div className="min-h-screen bg-black">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+    <>
+      {/* Structured Data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+      />
+      <div className="min-h-screen bg-black">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
         {/* Featured Episode Hero */}
         <div className="mb-6 sm:mb-8 lg:mb-12">
           <FeaturedEpisodeHero episode={featuredEpisode} />
@@ -130,6 +155,7 @@ export default function HomePage() {
         </div>
       </div>
     </div>
+    </>
   );
 }
 

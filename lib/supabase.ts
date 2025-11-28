@@ -4,10 +4,16 @@ import { Place, PlacesQueryParams } from '@/types/place';
 // Support both naming conventions: NEXT_PUBLIC_* (standard) and supabase_* (local dev)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.supabase_url || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.supabase_anon_key || '';
+// Support both SUPABASE_SECRET_SERVICE_ROLE_KEY and SUPABASE_SERVICE_ROLE_KEY
+const supabaseServiceKey = process.env.SUPABASE_SECRET_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
-// Create Supabase client only if credentials are available
+// Create Supabase clients only if credentials are available
 let supabase: SupabaseClient | null = null;
+let supabaseService: SupabaseClient | null = null;
 
+/**
+ * Get Supabase client for client-side operations (uses anon key)
+ */
 function getSupabaseClient(): SupabaseClient | null {
   if (!supabaseUrl || !supabaseAnonKey) {
     return null;
@@ -18,6 +24,27 @@ function getSupabaseClient(): SupabaseClient | null {
   }
   
   return supabase;
+}
+
+/**
+ * Get Supabase client for server-side operations (uses service role key, bypasses RLS)
+ * This should be used in API routes and server components
+ */
+function getSupabaseServiceClient(): SupabaseClient | null {
+  if (!supabaseUrl) {
+    return null;
+  }
+  
+  // Prefer service role key for server-side operations
+  if (supabaseServiceKey) {
+    if (!supabaseService) {
+      supabaseService = createClient(supabaseUrl, supabaseServiceKey);
+    }
+    return supabaseService;
+  }
+  
+  // Fallback to anon key if service role key is not available
+  return getSupabaseClient();
 }
 
 export class PlacesService {
@@ -31,7 +58,7 @@ export class PlacesService {
     maxLat: number
   ): Promise<Place[]> {
     try {
-      const client = getSupabaseClient();
+      const client = getSupabaseServiceClient();
       if (!client) {
         return [];
       }
@@ -77,7 +104,7 @@ export class PlacesService {
     maxLat: number
   ): Promise<Place[]> {
     try {
-      const client = getSupabaseClient();
+      const client = getSupabaseServiceClient();
       if (!client) {
         return [];
       }
@@ -125,7 +152,7 @@ export class PlacesService {
    */
   static async getPlacesSimple(): Promise<Place[]> {
     try {
-      const client = getSupabaseClient();
+      const client = getSupabaseServiceClient();
       if (!client) {
         console.warn('[PlacesService] Supabase client not available');
         return [];
@@ -183,7 +210,7 @@ export class PlacesService {
    */
   private static async getPlacesDirect(): Promise<Place[]> {
     try {
-      const client = getSupabaseClient();
+      const client = getSupabaseServiceClient();
       if (!client) return [];
 
       // Query all fields except location, then fetch location separately or use a view
@@ -250,7 +277,7 @@ export class PlacesService {
     filters?: PlacesQueryParams
   ): Promise<Place[]> {
     try {
-      const client = getSupabaseClient();
+      const client = getSupabaseServiceClient();
       if (!client) {
         return [];
       }
@@ -389,7 +416,7 @@ export class PlacesService {
    */
   static async getPlaceBySlug(slug: string): Promise<Place | null> {
     try {
-      const client = getSupabaseClient();
+      const client = getSupabaseServiceClient();
       if (!client) {
         return null;
       }

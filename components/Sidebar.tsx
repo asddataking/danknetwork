@@ -83,8 +83,8 @@ export default function Sidebar() {
       <div className="p-6 space-y-8">
         {/* Navigation Section */}
         <div>
-          <h2 className="text-white font-bold text-sm uppercase mb-4">NAVIGATION</h2>
-          <nav className="space-y-2">
+          <h2 className="text-white font-bold text-sm uppercase mb-4" id="sidebar-nav-heading">NAVIGATION</h2>
+          <nav className="space-y-2" aria-labelledby="sidebar-nav-heading">
             {navItems.map((item) => {
               const isActive = !item.external && !item.isButton && pathname === item.href;
               const linkClassName = `flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
@@ -99,6 +99,7 @@ export default function Sidebar() {
                     key={item.label}
                     onClick={() => setIsChannelsModalOpen(true)}
                     className={linkClassName}
+                    aria-label={`Open ${item.label} modal`}
                   >
                     {item.icon}
                     <span className="text-sm font-semibold">{item.label}</span>
@@ -126,6 +127,8 @@ export default function Sidebar() {
                   key={item.href}
                   href={item.href}
                   className={linkClassName}
+                  aria-current={isActive ? 'page' : undefined}
+                  aria-label={item.label}
                 >
                   {item.icon}
                   <span className="text-sm font-semibold">{item.label}</span>
