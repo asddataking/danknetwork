@@ -13,8 +13,9 @@ export const revalidate = 0;
 export async function GET() {
   try {
     const shopUrl = process.env.FW_SHOP_URL;
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    // Support both naming conventions
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.supabase_url;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.supabase_anon_key;
 
     if (!shopUrl) {
       return NextResponse.json({

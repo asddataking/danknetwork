@@ -59,43 +59,87 @@ export async function GET() {
     };
 
     try {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      // Support both naming conventions
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.supabase_url;
+      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.supabase_anon_key;
+      
+      cacheStatus.accessible = !!(supabaseUrl && supabaseAnonKey);
       
       if (supabaseUrl && supabaseAnonKey) {
         const supabase = createClient(supabaseUrl, supabaseAnonKey);
         const now = new Date().toISOString();
         
-        // Get total count
-        const { count: totalCount } = await supabase
+        // Test basic connection first
+        const { data: testData, error: testError } = await supabase
           .from('products_cache')
-          .select('*', { count: 'exact', head: true });
+          .select('product_id')
+          .limit(1);
         
-        // Get non-expired count
-        const { count: nonExpiredCount } = await supabase
-          .from('products_cache')
-          .select('*', { count: 'exact', head: true })
-          .gt('expires_at', now);
-        
-        // Get expired count
-        const { count: expiredCount } = await supabase
-          .from('products_cache')
-          .select('*', { count: 'exact', head: true })
-          .lte('expires_at', now);
-        
-        // Get sample products (including expired)
-        const { data: sampleData } = await supabase
-          .from('products_cache')
-          .select('product_id, name, price, category, in_stock, expires_at, updated_at')
-          .order('updated_at', { ascending: false })
-          .limit(5);
-        
-        cacheStatus = {
-          accessible: true,
-          totalCount: totalCount || 0,
-          nonExpiredCount: nonExpiredCount || 0,
-          expiredCount: expiredCount || 0,
-          sampleProducts: sampleData || [],
+        if (testError) {
+          cacheStatus.error = {
+            message: `Connection test error: ${testError.message || 'Unknown error'}`,
+            code: testError.code || 'NO_CODE',
+            details: JSON.stringify(testError),
+            hint: testError.hint,
+          };
+        } else {
+          // Get total count
+          const { count: totalCount, error: totalError } = await supabase
+            .from('products_cache')
+            .select('*', { count: 'exact', head: true });
+          
+          if (totalError) {
+            cacheStatus.error = {
+              message: `Total count error: ${totalError.message || 'Unknown error'}`,
+              code: totalError.code || 'NO_CODE',
+              details: JSON.stringify(totalError),
+              hint: totalError.hint,
+            };
+            // Don't continue if we can't even count
+          } else {
+          // Get non-expired count
+          const { count: nonExpiredCount, error: nonExpiredError } = await supabase
+            .from('products_cache')
+            .select('*', { count: 'exact', head: true })
+            .gt('expires_at', now);
+          
+          // Get expired count
+          const { count: expiredCount } = await supabase
+            .from('products_cache')
+            .select('*', { count: 'exact', head: true })
+            .lte('expires_at', now);
+          
+          // Get sample products (including expired)
+          const { data: sampleData, error: sampleError } = await supabase
+            .from('products_cache')
+            .select('product_id, name, price, category, in_stock, expires_at, updated_at')
+            .order('updated_at', { ascending: false })
+            .limit(5);
+          
+          if (sampleError) {
+            cacheStatus.error = {
+              message: `Sample query error: ${sampleError.message}`,
+              code: sampleError.code,
+              details: sampleError,
+            };
+          }
+          
+            cacheStatus = {
+              accessible: true,
+              totalCount: totalCount || 0,
+              nonExpiredCount: nonExpiredCount || 0,
+              expiredCount: expiredCount || 0,
+              sampleProducts: sampleData || [],
+              error: cacheStatus.error || null,
+              testQueryResult: testData ? { success: true, rows: testData.length } : null,
+            };
+          }
+        }
+      } else {
+        cacheStatus.error = {
+          message: 'Supabase environment variables not set',
+          hasUrl: !!supabaseUrl,
+          hasKey: !!supabaseAnonKey,
         };
       }
     } catch (error: any) {

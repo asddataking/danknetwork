@@ -4,18 +4,24 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // Supabase client for caching
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+// Support both naming conventions: NEXT_PUBLIC_* (standard) and supabase_* (local dev)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.supabase_url || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.supabase_anon_key || '';
 
 let supabaseClient: SupabaseClient | null = null;
 
 function getSupabaseClient(): SupabaseClient | null {
   if (!supabaseUrl || !supabaseAnonKey) {
+    console.warn('[FourthwallClient] Supabase not configured:', {
+      hasUrl: !!supabaseUrl,
+      hasKey: !!supabaseAnonKey,
+    });
     return null;
   }
   
   if (!supabaseClient) {
     supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+    console.log('[FourthwallClient] Supabase client initialized successfully');
   }
   
   return supabaseClient;
@@ -87,8 +93,11 @@ class FourthwallClient {
     try {
       const client = getSupabaseClient();
       if (!client) {
+        console.warn('[FourthwallClient] Cannot access cache - Supabase client not available');
         return null;
       }
+      
+      console.log('[FourthwallClient] Supabase client available, querying cache...');
 
       // Get all non-expired products from cache (or stale if allowStale is true)
       const now = new Date().toISOString();
@@ -111,11 +120,20 @@ class FourthwallClient {
 
       if (error) {
         console.error('[FourthwallClient] Cache query error:', error);
+        console.error('[FourthwallClient] Error details:', JSON.stringify(error, null, 2));
+        console.error('[FourthwallClient] Supabase client initialized:', !!client);
+        console.error('[FourthwallClient] Supabase URL:', supabaseUrl ? 'SET' : 'NOT SET');
+        console.error('[FourthwallClient] Supabase Anon Key:', supabaseAnonKey ? 'SET' : 'NOT SET');
         return null;
       }
 
       if (!data || data.length === 0) {
         console.log('[FourthwallClient] No products found in cache (expired or empty)');
+        console.log('[FourthwallClient] Query conditions:', {
+          allowStale: options.allowStale,
+          category: options.category,
+          now: new Date().toISOString(),
+        });
         return null;
       }
 
@@ -163,6 +181,17 @@ class FourthwallClient {
                 : (product.featured_image?.src ? [product.featured_image.src] : []);
             } else if (item.image_url) {
               images = [item.image_url];
+            }
+            
+            // Ensure we have at least one image - if none found, log for debugging
+            if (images.length === 0) {
+              console.warn('[FourthwallClient] No images found for cached product:', {
+                product_id: item.product_id,
+                has_raw_data_image: !!product?.image,
+                has_raw_data_images: !!product?.images,
+                has_item_image_url: !!item.image_url,
+                raw_data_keys: product ? Object.keys(product) : []
+              });
             }
 
             // Parse price using the same helper function
