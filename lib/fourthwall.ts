@@ -450,36 +450,109 @@ class FourthwallClient {
     }
 
     // Build Storefront API URL
-    // Format: https://[shop].fourthwall.com/api/storefront/products
+    // Try multiple endpoint formats - Fourthwall might use GraphQL or different REST endpoints
     const cleanShopUrl = this.shopUrl.replace(/\/$/, '');
-    const storefrontUrl = `${cleanShopUrl}/api/storefront/products`;
-    const params = new URLSearchParams();
     
-    if (options.category) {
-      params.append('collection', options.category);
-    } else if (this.collectionSlug && this.collectionSlug !== 'all') {
-      params.append('collection', this.collectionSlug);
-    }
+    // Try GraphQL endpoint first (most common for Storefront APIs)
+    const graphqlUrl = `${cleanShopUrl}/api/graphql`;
     
-    if (options.limit) {
-      params.append('limit', options.limit.toString());
-    }
-
-    const url = params.toString() ? `${storefrontUrl}?${params.toString()}` : storefrontUrl;
-    console.log('[FourthwallClient] Fetching from Storefront API:', url);
+    // GraphQL query to fetch products
+    const graphqlQuery = {
+      query: `
+        query GetProducts {
+          products(first: ${options.limit || 250}) {
+            edges {
+              node {
+                id
+                title
+                handle
+                description
+                priceRange {
+                  minVariantPrice {
+                    amount
+                    currencyCode
+                  }
+                }
+                images(first: 1) {
+                  edges {
+                    node {
+                      url
+                      altText
+                    }
+                  }
+                }
+                availableForSale
+                variants(first: 10) {
+                  edges {
+                    node {
+                      id
+                      title
+                      price {
+                        amount
+                        currencyCode
+                      }
+                      availableForSale
+                    }
+                  }
+                }
+                collections(first: 1) {
+                  edges {
+                    node {
+                      handle
+                      title
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      `
+    };
+    
+    console.log('[FourthwallClient] Trying GraphQL Storefront API:', graphqlUrl);
     
     // Add timeout to prevent hanging (10 seconds)
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
     
     try {
-      const response = await fetch(url, {
+      // Try GraphQL first
+      let response = await fetch(graphqlUrl, {
+        method: 'POST',
         headers: {
           'Authorization': `Bearer ${this.storefrontToken}`,
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify(graphqlQuery),
         signal: controller.signal,
       });
+      
+      // If GraphQL fails, try REST endpoints
+      if (!response.ok) {
+        console.log('[FourthwallClient] GraphQL failed, trying REST endpoints...');
+        const restUrlPatterns = [
+          `${cleanShopUrl}/api/storefront/products`,
+          `${cleanShopUrl}/storefront/api/products`,
+          `https://api.fourthwall.com/storefront/products`,
+        ];
+        
+        for (const restUrl of restUrlPatterns) {
+          console.log(`[FourthwallClient] Trying REST endpoint: ${restUrl}`);
+          const restResponse = await fetch(restUrl, {
+            headers: {
+              'Authorization': `Bearer ${this.storefrontToken}`,
+              'Content-Type': 'application/json',
+            },
+            signal: controller.signal,
+          });
+          
+          if (restResponse.ok) {
+            response = restResponse;
+            break;
+          }
+        }
+      }
       
       clearTimeout(timeoutId);
 
@@ -492,12 +565,45 @@ class FourthwallClient {
       const data = await response.json();
       console.log('[FourthwallClient] Storefront API response:', { 
         hasProducts: !!data.products, 
+        hasData: !!data.data,
         isArray: Array.isArray(data),
-        productCount: data.products?.length || (Array.isArray(data) ? data.length : 0)
+        productCount: data.products?.length || data.data?.products?.edges?.length || (Array.isArray(data) ? data.length : 0),
+        topLevelKeys: Object.keys(data || {})
       });
       
-      // Storefront API returns { products: [...] } or just an array
-      const products = data.products || data;
+      // Handle GraphQL response format: { data: { products: { edges: [...] } } }
+      let products: any[] = [];
+      if (data.data?.products?.edges) {
+        // GraphQL format - extract from edges
+        products = data.data.products.edges.map((edge: any) => {
+          const node = edge.node;
+          const variant = node.variants?.edges?.[0]?.node;
+          const image = node.images?.edges?.[0]?.node;
+          const collection = node.collections?.edges?.[0]?.node;
+          
+          return {
+            id: node.id,
+            title: node.title,
+            handle: node.handle,
+            description: node.description || '',
+            price: variant?.price?.amount || node.priceRange?.minVariantPrice?.amount || 0,
+            images: image ? [image.url] : [],
+            available: node.availableForSale !== false,
+            variants: (node.variants?.edges || []).map((v: any) => ({
+              id: v.node.id,
+              title: v.node.title,
+              price: parseFloat(v.node.price?.amount || 0),
+              available: v.node.availableForSale !== false,
+            })),
+            collection: collection?.handle || collection?.title || 'General',
+            tags: [],
+          };
+        });
+        console.log(`[FourthwallClient] Extracted ${products.length} products from GraphQL response`);
+      } else {
+        // REST format - { products: [...] } or just an array
+        products = data.products || data;
+      }
       
       if (!Array.isArray(products)) {
         console.error('[FourthwallClient] Storefront API returned invalid format');
@@ -658,8 +764,11 @@ class FourthwallClient {
           try {
             const testResponse = await fetch(feedUrl, {
               headers: {
-                'Accept': 'application/json',
-                'User-Agent': 'Mozilla/5.0 (compatible; DankNetwork/1.0)',
+                'Accept': 'application/json, text/plain, */*',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Referer': this.shopUrl || feedUrl,
+                'Origin': this.shopUrl || feedUrl.replace('/products.json', ''),
               },
               signal: controller.signal,
             });

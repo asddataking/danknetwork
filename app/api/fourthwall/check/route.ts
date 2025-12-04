@@ -54,8 +54,11 @@ export async function GET() {
 
         const response = await fetch(feedUrl, {
           headers: {
-            'Accept': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (compatible; DankNetwork/1.0)',
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Referer': cleanShopUrl || feedUrl,
+            'Origin': cleanShopUrl || feedUrl.replace('/products.json', ''),
           },
           signal: controller.signal,
         });
