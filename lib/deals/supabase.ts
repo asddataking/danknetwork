@@ -4,9 +4,14 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+// Singleton instances to prevent multiple GoTrueClient instances
+let dealsServiceClient: SupabaseClient | null = null;
+let dealsPublicClient: SupabaseClient | null = null;
+
 /**
  * Get Supabase client for deals operations
  * Uses service role key for server-side operations (bypasses RLS)
+ * Uses singleton pattern to prevent multiple GoTrueClient instances
  */
 export function getDealsClient(): SupabaseClient {
   if (!supabaseUrl) {
@@ -15,7 +20,10 @@ export function getDealsClient(): SupabaseClient {
 
   // Use service role key for server-side operations (bypasses RLS)
   if (supabaseServiceKey) {
-    return createClient(supabaseUrl, supabaseServiceKey);
+    if (!dealsServiceClient) {
+      dealsServiceClient = createClient(supabaseUrl, supabaseServiceKey);
+    }
+    return dealsServiceClient;
   }
 
   // Fallback to anon key (may have RLS restrictions)
@@ -23,17 +31,26 @@ export function getDealsClient(): SupabaseClient {
     throw new Error('Supabase keys are not configured');
   }
 
-  return createClient(supabaseUrl, supabaseAnonKey);
+  // Reuse public client if service key not available
+  if (!dealsPublicClient) {
+    dealsPublicClient = createClient(supabaseUrl, supabaseAnonKey);
+  }
+  return dealsPublicClient;
 }
 
 /**
  * Get Supabase client for client-side operations
+ * Uses singleton pattern to prevent multiple GoTrueClient instances
  */
 export function getDealsClientPublic(): SupabaseClient | null {
   if (!supabaseUrl || !supabaseAnonKey) {
     return null;
   }
 
-  return createClient(supabaseUrl, supabaseAnonKey);
+  if (!dealsPublicClient) {
+    dealsPublicClient = createClient(supabaseUrl, supabaseAnonKey);
+  }
+
+  return dealsPublicClient;
 }
 

@@ -5,31 +5,47 @@
  * Uses Supabase Auth for all authentication needs (Rewards, Deals, etc.)
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+// Singleton instances to prevent multiple GoTrueClient instances
+let supabaseClient: SupabaseClient | null = null;
+let supabaseServiceClient: SupabaseClient | null = null;
+
 /**
  * Get Supabase client for client-side operations (uses anon key)
+ * Uses singleton pattern to prevent multiple GoTrueClient instances
  */
-export function getSupabaseClient() {
+export function getSupabaseClient(): SupabaseClient {
   if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error('Supabase URL and anon key must be configured');
   }
-  return createClient(supabaseUrl, supabaseAnonKey);
+  
+  if (!supabaseClient) {
+    supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+  }
+  
+  return supabaseClient;
 }
 
 /**
  * Get Supabase client for server-side operations (uses service role key)
  * This bypasses RLS policies and should only be used in API routes/server actions
+ * Uses singleton pattern to prevent multiple GoTrueClient instances
  */
-export function getSupabaseServiceClient() {
+export function getSupabaseServiceClient(): SupabaseClient {
   if (!supabaseUrl || !supabaseServiceKey) {
     throw new Error('Supabase URL and service role key must be configured');
   }
-  return createClient(supabaseUrl, supabaseServiceKey);
+  
+  if (!supabaseServiceClient) {
+    supabaseServiceClient = createClient(supabaseUrl, supabaseServiceKey);
+  }
+  
+  return supabaseServiceClient;
 }
 
 /**
