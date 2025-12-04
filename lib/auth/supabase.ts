@@ -161,6 +161,10 @@ export async function signOut() {
  * Send password reset email
  */
 export async function resetPassword(email: string) {
+  if (typeof window === 'undefined') {
+    return { error: 'resetPassword can only be called from the client side' };
+  }
+
   const supabase = getSupabaseClient();
   
   const { error } = await supabase.auth.resetPasswordForEmail(email, {

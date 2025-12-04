@@ -9,7 +9,7 @@ import { usePremium } from '@/hooks/usePremium';
 import { getUserProfile, getActivePerks, redeemPerk } from '@/lib/rewards/supabase';
 
 interface Perk {
-  id: number;
+  id: string;
   title: string;
   description: string;
   partner: string;
