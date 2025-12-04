@@ -568,8 +568,8 @@ async function loadPerksAnalytics(supabase: any) {
   });
 
   const popularPerks = Array.from(perkCounts.entries())
-    .map(([id, data]) => ({ id, ...data }))
-    .sort((a, b) => b.count - a.count)
+    .map(([id, data]) => ({ id, title: data.title, redemptions: data.count }))
+    .sort((a, b) => b.redemptions - a.redemptions)
     .slice(0, 5);
 
   return {

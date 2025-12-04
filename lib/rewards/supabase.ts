@@ -317,6 +317,32 @@ export async function awardPoints(
 }
 
 /**
+ * Burn points from user
+ */
+export async function burnPoints(
+  userId: string,
+  amount: number,
+  sourceId?: string,
+  sourceType?: 'receipt' | 'perk' | 'promotion' | 'admin' | 'other',
+  description?: string
+): Promise<boolean> {
+  const { error } = await supabase.rpc('burn_points', {
+    p_user_id: userId,
+    p_amount: amount,
+    p_source_type: sourceType || 'other',
+    p_source_id: sourceId,
+    p_description: description || `Burned ${amount} points`
+  });
+
+  if (error) {
+    console.error('Error burning points:', error);
+    return false;
+  }
+
+  return true;
+}
+
+/**
  * Match merchant name to a partner
  * Uses fuzzy matching to find the best match
  */

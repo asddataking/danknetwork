@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServiceClient } from '@/lib/auth/supabase';
-import { burn_points, award_points } from '@/lib/rewards/supabase';
+import { burnPoints, awardPoints } from '@/lib/rewards/supabase';
 import { createNotification } from '@/lib/notifications/create';
 
 export async function POST(request: NextRequest) {
@@ -97,19 +97,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Burn points from sender
-    await burn_points(
+    await burnPoints(
       user.id,
       amount,
-      'points_transfer',
       transfer.id,
+      'admin',
       `Points ${transferType === 'gift' ? 'gifted' : 'transferred'} to ${recipientEmail}`
     );
 
     // Award points to recipient
-    await award_points(
+    await awardPoints(
       recipientUser.user.id,
       amount,
-      'bonus',
+      'transfer_received',
       transfer.id,
       'promotion',
       transferType === 'gift' 

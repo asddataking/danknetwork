@@ -3,7 +3,7 @@
  */
 
 import { getSupabaseServiceClient } from '@/lib/auth/supabase';
-import { award_points } from '@/lib/rewards/supabase';
+import { awardPoints } from '@/lib/rewards/supabase';
 import { createNotification, notifyReferralReward } from '@/lib/notifications/create';
 
 /**
@@ -55,7 +55,7 @@ export async function processReferralCode(referralCode: string, newUserId: strin
     const refereePoints = 50; // Welcome bonus for new user
 
     // Award points to referrer
-    await award_points(
+    await awardPoints(
       codeData.user_id,
       referrerPoints,
       'bonus',
@@ -65,7 +65,7 @@ export async function processReferralCode(referralCode: string, newUserId: strin
     );
 
     // Award points to new user
-    await award_points(
+    await awardPoints(
       newUserId,
       refereePoints,
       'bonus',
@@ -139,7 +139,7 @@ export async function processBusinessReferral(referrerId: string, businessId: st
     // Award points to referrer
     const points = 500; // Higher reward for business referrals
 
-    await award_points(
+    await awardPoints(
       referrerId,
       points,
       'bonus',
@@ -207,7 +207,7 @@ export async function processPremiumReferral(referrerId: string, newPremiumUserI
     // Award points to referrer
     const points = 250; // Reward for premium upgrade
 
-    await award_points(
+    await awardPoints(
       referrerId,
       points,
       'bonus',
