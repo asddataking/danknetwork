@@ -84,14 +84,27 @@ export async function processReferralCode(referralCode: string, newUserId: strin
       .eq('id', referral.id);
 
     // Update referral code usage count
-    await supabase.rpc('increment_referral_code_uses', { code_id: codeData.user_id })
-      .catch(() => {
-        // Fallback if function doesn't exist
-        supabase
+    try {
+      const { error: rpcError } = await supabase.rpc('increment_referral_code_uses', { code_id: codeData.user_id });
+      if (rpcError) {
+        // Fallback if function doesn't exist - increment manually
+        const { data: currentCode } = await supabase
           .from('user_referral_codes')
-          .update({ total_uses: supabase.raw('total_uses + 1') })
-          .eq('id', codeData.user_id);
-      });
+          .select('total_uses')
+          .eq('id', codeData.user_id)
+          .single();
+        
+        if (currentCode) {
+          await supabase
+            .from('user_referral_codes')
+            .update({ total_uses: (currentCode.total_uses || 0) + 1 })
+            .eq('id', codeData.user_id);
+        }
+      }
+    } catch (error) {
+      // Silently fail - referral code usage tracking is not critical
+      console.log('Error updating referral code usage count:', error);
+    }
 
     // Create notifications
     await notifyReferralReward(codeData.user_id, referrerPoints, 'user_signup');
