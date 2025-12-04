@@ -247,7 +247,7 @@ export default function PlaceDetail({ place }: PlaceDetailProps) {
             </div>
 
             {/* Cuisines & Tags */}
-            {(place.cuisines?.length > 0 || place.tags?.length > 0) && (
+            {((place.cuisines?.length ?? 0) > 0 || (place.tags?.length ?? 0) > 0) && (
               <div className="bg-dark-surface rounded-xl border border-neon-green/20 p-6 shadow-lg">
                 <div className="grid sm:grid-cols-2 gap-6">
                   {place.cuisines && place.cuisines.length > 0 && (
