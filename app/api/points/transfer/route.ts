@@ -66,13 +66,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Find recipient by email
-    const { data: recipientUser, error: recipientError } = await supabase.auth.admin.getUserByEmail(recipientEmail);
+    const { data: usersData, error: usersError } = await supabase.auth.admin.listUsers();
     
-    if (recipientError || !recipientUser) {
+    if (usersError) {
+      return NextResponse.json({ error: 'Failed to find recipient' }, { status: 500 });
+    }
+
+    const recipientUser = usersData?.users?.find(u => u.email?.toLowerCase() === recipientEmail.toLowerCase());
+    
+    if (!recipientUser) {
       return NextResponse.json({ error: 'Recipient not found' }, { status: 404 });
     }
 
-    if (recipientUser.user.id === user.id) {
+    if (recipientUser.id === user.id) {
       return NextResponse.json({ error: 'Cannot transfer to yourself' }, { status: 400 });
     }
 
@@ -81,7 +87,7 @@ export async function POST(request: NextRequest) {
       .from('points_transfers')
       .insert({
         from_user_id: user.id,
-        to_user_id: recipientUser.user.id,
+        to_user_id: recipientUser.id,
         amount,
         transfer_type: transferType || 'transfer',
         message: message || null,
@@ -107,7 +113,7 @@ export async function POST(request: NextRequest) {
 
     // Award points to recipient
     await awardPoints(
-      recipientUser.user.id,
+      recipientUser.id,
       amount,
       'transfer_received',
       transfer.id,
@@ -119,7 +125,7 @@ export async function POST(request: NextRequest) {
 
     // Create notifications
     await createNotification({
-      userId: recipientUser.user.id,
+      userId: recipientUser.id,
       type: 'points_awarded',
       title: transferType === 'gift' ? 'Points Gift Received! 🎁' : 'Points Transfer Received',
       message: `You received ${amount} points from ${user.email}${message ? `: "${message}"` : ''}`,
