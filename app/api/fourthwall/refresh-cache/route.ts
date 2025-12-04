@@ -79,12 +79,50 @@ export async function GET() {
       }
     }
 
+    // If JSON feed failed, try Storefront API
+    if (products.length === 0) {
+      console.log('[Cache Refresh] JSON feed failed, trying Storefront API...');
+      const storefrontToken = process.env.FW_STOREFRONT_TOKEN;
+      
+      if (storefrontToken) {
+        const cleanShopUrl = shopUrl.replace(/\/$/, '');
+        const storefrontUrl = `${cleanShopUrl}/api/storefront/products`;
+        
+        try {
+          const storefrontResponse = await fetch(storefrontUrl, {
+            headers: {
+              'Authorization': `Bearer ${storefrontToken}`,
+              'Content-Type': 'application/json',
+            },
+          });
+          
+          if (storefrontResponse.ok) {
+            const storefrontData = await storefrontResponse.json();
+            const storefrontProducts = storefrontData.products || storefrontData;
+            
+            if (Array.isArray(storefrontProducts) && storefrontProducts.length > 0) {
+              products = storefrontProducts;
+              console.log(`[Cache Refresh] ✓ Storefront API returned ${products.length} products`);
+            } else {
+              console.warn('[Cache Refresh] Storefront API returned 0 products');
+            }
+          } else {
+            console.warn(`[Cache Refresh] Storefront API returned ${storefrontResponse.status}`);
+          }
+        } catch (storefrontError: any) {
+          console.error('[Cache Refresh] Storefront API error:', storefrontError.message);
+        }
+      } else {
+        console.warn('[Cache Refresh] FW_STOREFRONT_TOKEN not configured, cannot use Storefront API');
+      }
+    }
+    
     if (products.length === 0) {
       return NextResponse.json({
         error: 'No products found',
-        message: 'All JSON feed URLs returned 0 products or failed',
+        message: 'Both JSON feed and Storefront API returned 0 products or failed',
         attemptedUrls: feedUrlPatterns,
-        suggestion: 'Check if your Fourthwall shop has published products',
+        suggestion: 'Check if your Fourthwall shop has published products and FW_STOREFRONT_TOKEN is set',
       }, { status: 404 });
     }
 

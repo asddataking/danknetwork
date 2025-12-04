@@ -15,8 +15,9 @@ export async function GET(request: NextRequest) {
     const featured = searchParams.get('featured') === 'true';
 
     console.log('[Products API] Fetching products with options:', { category, limit, featured });
-    console.log('[Products API] Using JSON feed implementation (not Storefront API)');
+    console.log('[Products API] Will try: Cache → JSON feed → Storefront API');
     console.log('[Products API] FW_SHOP_URL env var:', process.env.FW_SHOP_URL ? 'SET' : 'NOT SET');
+    console.log('[Products API] FW_STOREFRONT_TOKEN env var:', process.env.FW_STOREFRONT_TOKEN ? 'SET' : 'NOT SET');
 
     const startTime = Date.now();
     const products = await fourthwallClient.getProducts({

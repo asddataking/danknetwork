@@ -341,7 +341,7 @@ class FourthwallClient {
 
   /**
    * Fetch products from Fourthwall
-   * JSON feed ONLY - no fallbacks to cache or Storefront API
+   * Tries: Fresh cache -> Stale cache -> JSON feed -> Storefront API
    */
   async getProducts(options: {
     category?: string;
@@ -378,7 +378,7 @@ class FourthwallClient {
         return staleCachedProducts;
       }
 
-      // If no cache at all, try JSON feed
+      // If no cache at all, try JSON feed first
       console.log('[FourthwallClient] No cache found, fetching from JSON feed...');
       let jsonFeedProducts: FourthwallProduct[] = [];
       
@@ -390,15 +390,26 @@ class FourthwallClient {
         }
       } catch (feedError: any) {
         console.warn('[FourthwallClient] JSON feed failed:', feedError.message);
-        // If it's a 403, this is expected for private shops
+        // If it's a 403, this is expected for private shops - try Storefront API
         if (feedError.message?.includes('403') || feedError.message?.includes('Forbidden')) {
-          console.warn('[FourthwallClient] JSON feed is returning 403 Forbidden - shop may be private or feed URL not publicly accessible');
-          console.warn('[FourthwallClient] To fix: Make sure products are cached manually using /api/fourthwall/refresh-cache');
+          console.warn('[FourthwallClient] JSON feed is returning 403 Forbidden - shop may be private');
+          console.log('[FourthwallClient] Falling back to Storefront API...');
+          
+          // Try Storefront API as fallback
+          try {
+            const storefrontProducts = await this.getProductsFromStorefrontAPI(options);
+            if (storefrontProducts.length > 0) {
+              console.log(`[FourthwallClient] Storefront API returned ${storefrontProducts.length} products`);
+              return storefrontProducts;
+            }
+          } catch (storefrontError: any) {
+            console.error('[FourthwallClient] Storefront API also failed:', storefrontError.message);
+          }
         }
       }
       
-      // If we get here, both feed and cache failed
-      console.warn('[FourthwallClient] Both JSON feed and cache returned 0 products');
+      // If we get here, both feed and Storefront API failed
+      console.warn('[FourthwallClient] Both JSON feed and Storefront API returned 0 products');
       console.warn('[FourthwallClient] Check the debug endpoint at /api/fourthwall/debug to see raw feed data');
       console.warn('[FourthwallClient] Try manually refreshing cache: GET /api/fourthwall/refresh-cache');
       
