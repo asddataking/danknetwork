@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Video } from '@/data/videos';
 import { useAppStore } from '@/lib/store';
 
@@ -31,6 +31,31 @@ export default function VideoModal({ video, onClose }: VideoModalProps) {
     };
   }, []);
 
+  // Extract YouTube video ID from video.id or video.videoUrl
+  const youtubeVideoId = useMemo(() => {
+    // video.id is already the YouTube video ID for videos from YouTube API
+    if (video.id && !video.id.includes('http')) {
+      return video.id;
+    }
+    
+    // Fallback: try to extract from videoUrl
+    if (video.videoUrl) {
+      const urlMatch = video.videoUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/);
+      if (urlMatch && urlMatch[1]) {
+        return urlMatch[1];
+      }
+    }
+    
+    return null;
+  }, [video.id, video.videoUrl]);
+
+  // Build YouTube embed URL with autoplay
+  const youtubeEmbedUrl = useMemo(() => {
+    if (!youtubeVideoId) return null;
+    
+    return `https://www.youtube.com/embed/${youtubeVideoId}?autoplay=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1`;
+  }, [youtubeVideoId]);
+
   const handleShare = () => {
     navigator.clipboard.writeText(`https://thedanknetwork.com/video/${video.id}`);
     // Could show a toast here
@@ -57,28 +82,53 @@ export default function VideoModal({ video, onClose }: VideoModalProps) {
 
         {/* Video Area */}
         <div className="relative aspect-video bg-gray-900 overflow-hidden rounded-t-2xl">
-          <img
-            src={video.thumbnailUrl}
-            alt={video.title}
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/30 flex items-center justify-center">
-            <div className="w-24 h-24 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center hover:scale-110 transition-transform duration-300 glow-turquoise cursor-pointer">
-              <svg className="w-12 h-12 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z" />
-              </svg>
-            </div>
-          </div>
-          <div className="absolute top-4 left-4 z-10">
-            <span className={`px-4 py-2 rounded-full text-sm font-bold text-white shadow-xl backdrop-blur-sm border border-white/20 ${brandColors[video.brand]}`}>
-              {brandLabels[video.brand]}
-            </span>
-          </div>
-          <div className="absolute bottom-4 right-4 z-10">
-            <span className="px-3 py-1.5 rounded-lg text-sm font-bold text-white bg-black/70 backdrop-blur-sm border border-white/10">
-              {video.runtime}
-            </span>
-          </div>
+          {youtubeEmbedUrl ? (
+            <>
+              <iframe
+                src={youtubeEmbedUrl}
+                title={video.title}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+                className="w-full h-full absolute inset-0"
+                style={{ border: 'none' }}
+              />
+              <div className="absolute top-4 left-4 z-10">
+                <span className={`px-4 py-2 rounded-full text-sm font-bold text-white shadow-xl backdrop-blur-sm border border-white/20 ${brandColors[video.brand]}`}>
+                  {brandLabels[video.brand]}
+                </span>
+              </div>
+              <div className="absolute bottom-4 right-4 z-10">
+                <span className="px-3 py-1.5 rounded-lg text-sm font-bold text-white bg-black/70 backdrop-blur-sm border border-white/10">
+                  {video.runtime}
+                </span>
+              </div>
+            </>
+          ) : (
+            <>
+              <img
+                src={video.thumbnailUrl}
+                alt={video.title}
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/30 flex items-center justify-center">
+                <div className="w-24 h-24 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center hover:scale-110 transition-transform duration-300 glow-turquoise cursor-pointer">
+                  <svg className="w-12 h-12 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                </div>
+              </div>
+              <div className="absolute top-4 left-4 z-10">
+                <span className={`px-4 py-2 rounded-full text-sm font-bold text-white shadow-xl backdrop-blur-sm border border-white/20 ${brandColors[video.brand]}`}>
+                  {brandLabels[video.brand]}
+                </span>
+              </div>
+              <div className="absolute bottom-4 right-4 z-10">
+                <span className="px-3 py-1.5 rounded-lg text-sm font-bold text-white bg-black/70 backdrop-blur-sm border border-white/10">
+                  {video.runtime}
+                </span>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Content */}
