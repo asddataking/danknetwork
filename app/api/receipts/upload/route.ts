@@ -155,7 +155,7 @@ export async function POST(request: Request) {
           userId,
           receipt.id,
           pointsAwarded,
-          extractedData?.merchantName
+          extractedData?.merchantName || undefined
         );
 
         // Check if this is first receipt and award bonus
