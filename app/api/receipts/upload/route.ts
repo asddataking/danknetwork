@@ -14,6 +14,8 @@ import { NextResponse } from 'next/server';
 import { getSupabaseServiceClient } from '@/lib/auth/supabase';
 import { extractReceiptWithGemini, calculatePointsFromReceipt } from '@/lib/ai/receipt-extraction';
 import { isUserPremium } from '@/lib/subscription/premium';
+import { matchPartnerByMerchantName } from '@/lib/rewards/supabase';
+import { notifyReceiptApproved, notifyReceiptRejected, notifyPointsAwarded } from '@/lib/notifications/create';
 
 export async function POST(request: Request) {
   try {
@@ -84,13 +86,25 @@ export async function POST(request: Request) {
       // Continue anyway - manual review can process it
     }
 
+    // Match merchant to partner
+    let partnerId = null;
+    let partnerMultiplier = 1.0;
+    if (extractedData?.merchantName) {
+      const partner = await matchPartnerByMerchantName(extractedData.merchantName);
+      if (partner) {
+        partnerId = partner.id;
+        partnerMultiplier = partner.points_multiplier || 1.0;
+        console.log(`[Receipt Upload] Matched partner: ${partner.business_name} (${partnerMultiplier}x multiplier)`);
+      }
+    }
+
     // Calculate potential points
     let pointsAwarded = 0;
     if (extractedData?.isValid && extractedData.totalAmount) {
       pointsAwarded = calculatePointsFromReceipt(
         extractedData.totalAmount,
         isPremium,
-        1.0 // TODO: Apply partner multiplier when partner system is ready
+        partnerMultiplier
       );
     }
 
@@ -99,12 +113,14 @@ export async function POST(request: Request) {
       .from('receipts')
       .insert({
         user_id: userId,
+        partner_id: partnerId,
         image_url: publicUrl,
         status: extractedData?.isValid ? 'approved' : 'pending',
         total: extractedData?.totalAmount,
         merchant_name: extractedData?.merchantName,
         purchase_date: extractedData?.purchaseDate,
         points_awarded: extractedData?.isValid ? pointsAwarded : 0,
+        points_multiplier: partnerMultiplier,
         parsed_data: extractedData,
         processed_at: extractedData?.isValid ? new Date().toISOString() : null,
       })
@@ -122,19 +138,83 @@ export async function POST(request: Request) {
     // If auto-approved, award points immediately
     if (extractedData?.isValid && pointsAwarded > 0) {
       // Update user profile points
-      const { error: profileError } = await supabase.rpc('award_points', {
-        p_user_id: userId,
-        p_amount: pointsAwarded,
-        p_transaction_type: 'earn',
-        p_source_type: 'receipt',
-        p_source_id: receipt.id,
-        p_description: `Receipt from ${extractedData.merchantName || 'merchant'} - $${extractedData.totalAmount}`
-      });
+      const { awardPoints } = await import('@/lib/rewards/supabase');
+      await awardPoints(
+        userId,
+        pointsAwarded,
+        'earned',
+        receipt.id,
+        'receipt',
+        `Receipt from ${extractedData.merchantName || 'merchant'} - $${extractedData.totalAmount}`
+      );
 
-      if (profileError) {
-        console.error('[Receipt Upload] Error awarding points:', profileError);
-        // Don't fail the request, just log it
+      // Points awarded successfully, continue with notifications and bonuses
+      {
+        // Create notification for approved receipt
+        await notifyReceiptApproved(
+          userId,
+          receipt.id,
+          pointsAwarded,
+          extractedData?.merchantName
+        );
+
+        // Check if this is first receipt and award bonus
+        if (receipt.status === 'approved') {
+          try {
+            // Check receipt count to see if this is first
+            const { count } = await supabase
+              .from('receipts')
+              .select('*', { count: 'exact', head: true })
+              .eq('user_id', userId)
+              .eq('status', 'approved');
+
+            // If this is the first approved receipt, award bonus
+            if (count === 1) {
+              // Import and call directly instead of HTTP request
+              const { awardPoints } = await import('@/lib/rewards/supabase');
+              
+              // Check if already awarded
+              const { data: existing } = await supabase
+                .from('points_transactions')
+                .select('id')
+                .eq('user_id', userId)
+                .eq('reference_type', 'promotion')
+                .eq('description', 'First receipt bonus')
+                .limit(1)
+                .single();
+
+              if (!existing) {
+                await awardPoints(
+                  userId,
+                  50,
+                  'bonus',
+                  receipt.id,
+                  'promotion',
+                  'First receipt bonus'
+                );
+                console.log('[Receipt Upload] First receipt bonus awarded');
+                
+                // Notify about bonus
+                await notifyPointsAwarded(
+                  userId,
+                  50,
+                  'First receipt bonus! 🎉',
+                  '/rewards'
+                );
+              }
+            }
+          } catch (err) {
+            console.log('[Receipt Upload] Could not check first receipt bonus:', err);
+          }
+        }
       }
+    } else if (receipt.status === 'pending') {
+      // Create notification for pending receipt
+      await notifyReceiptRejected(
+        userId,
+        receipt.id,
+        'Receipt needs manual review'
+      );
     }
 
     return NextResponse.json({

@@ -294,9 +294,9 @@ function generateRedemptionCode(): string {
 export async function awardPoints(
   userId: string,
   amount: number,
-  transactionType: 'earned' | 'bonus' | 'adjustment',
+  transactionType: 'earned' | 'spent' | 'refund' | 'burn' | 'bonus' | 'adjustment' | 'transfer_sent' | 'transfer_received',
   referenceId?: string,
-  referenceType?: 'receipt' | 'promotion' | 'admin',
+  referenceType?: 'receipt' | 'perk' | 'promotion' | 'admin' | 'other',
   description?: string
 ): Promise<boolean> {
   const { error } = await supabase.rpc('award_points', {
@@ -314,5 +314,49 @@ export async function awardPoints(
   }
 
   return true;
+}
+
+/**
+ * Match merchant name to a partner
+ * Uses fuzzy matching to find the best match
+ */
+export async function matchPartnerByMerchantName(merchantName: string | null): Promise<Partner | null> {
+  if (!merchantName) return null;
+
+  // Get all active partners
+  const partners = await getActivePartners();
+  if (partners.length === 0) return null;
+
+  // Normalize merchant name for matching
+  const normalizedMerchant = merchantName.toLowerCase().trim();
+
+  // Try exact match first
+  let match = partners.find(p => 
+    p.business_name.toLowerCase() === normalizedMerchant
+  );
+
+  if (match) return match;
+
+  // Try partial match (merchant name contains partner name or vice versa)
+  match = partners.find(p => {
+    const partnerName = p.business_name.toLowerCase();
+    return normalizedMerchant.includes(partnerName) || partnerName.includes(normalizedMerchant);
+  });
+
+  if (match) return match;
+
+  // Try matching against aliases if they exist
+  for (const partner of partners) {
+    if (partner.business_name) {
+      const partnerName = partner.business_name.toLowerCase();
+      // Check if merchant name contains key words from partner name
+      const partnerWords = partnerName.split(/\s+/).filter(w => w.length > 3);
+      if (partnerWords.some(word => normalizedMerchant.includes(word))) {
+        return partner;
+      }
+    }
+  }
+
+  return null;
 }
 

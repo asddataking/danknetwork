@@ -115,7 +115,7 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'signin' }: AuthModal
     <AnimatePresence>
       {isOpen && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 flex items-center justify-end p-4 pr-8"
           role="dialog"
           aria-modal="true"
           aria-labelledby="auth-modal-title"

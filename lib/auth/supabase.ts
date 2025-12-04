@@ -65,7 +65,7 @@ export async function getCurrentSession() {
 /**
  * Sign up a new user
  */
-export async function signUp(email: string, password: string, metadata?: Record<string, any>) {
+export async function signUp(email: string, password: string, metadata?: Record<string, any>, referralCode?: string) {
   const supabase = getSupabaseClient();
   
   const { data, error } = await supabase.auth.signUp({
@@ -79,6 +79,29 @@ export async function signUp(email: string, password: string, metadata?: Record<
   if (error) {
     console.error('[Auth] Sign up error:', error);
     return { user: null, error: error.message };
+  }
+
+  // Create user profile if user was created (first time signup)
+  if (data.user) {
+    try {
+      // Import here to avoid circular dependencies
+      const { createUserProfile } = await import('@/lib/rewards/supabase');
+      await createUserProfile(data.user.id, email.split('@')[0]);
+      
+      // Handle referral code if provided
+      if (referralCode) {
+        try {
+          const { processReferralCode } = await import('@/lib/rewards/referrals');
+          await processReferralCode(referralCode, data.user.id);
+        } catch (refError) {
+          console.error('[Auth] Error processing referral code:', refError);
+          // Don't fail signup if referral processing fails
+        }
+      }
+    } catch (profileError) {
+      console.error('[Auth] Error creating user profile:', profileError);
+      // Don't fail signup if profile creation fails
+    }
   }
   
   return { user: data.user, error: null };

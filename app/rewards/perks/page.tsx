@@ -2,10 +2,11 @@
 
 import { motion } from 'framer-motion';
 import { Gift, Crown, Lock, Star, Coffee, Car, Plane, Package, User } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { usePremium } from '@/hooks/usePremium';
+import { getUserProfile, getActivePerks, redeemPerk } from '@/lib/rewards/supabase';
 
 interface Perk {
   id: number;
@@ -19,105 +20,99 @@ interface Perk {
   color: string;
 }
 
+// Icon mapping for categories
+const categoryIcons: Record<string, any> = {
+  'Dispensary': Star,
+  'Restaurant': Coffee,
+  'Premium': Crown,
+  'Special': Package,
+  'default': Gift
+};
+
 export default function PerksPage() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { isPremium, loading: premiumLoading } = usePremium();
   
   const loading = authLoading || premiumLoading;
-  
-  // TODO: Load real user points from Supabase when rewards tables exist
-  const userPoints = 1250;
-
-  const mockPerks: Perk[] = [
-    {
-      id: 1,
-      title: '20% Off Edibles',
-      description: 'Get 20% off any edible product',
-      partner: 'Green Valley Dispensary',
-      pointsCost: 500,
-      isPremiumOnly: false,
-      category: 'Dispensary',
-      icon: Star,
-      color: 'dp-mint'
-    },
-    {
-      id: 2,
-      title: 'Free Coffee',
-      description: 'Complimentary coffee with any purchase',
-      partner: 'Local Coffee Co.',
-      pointsCost: 300,
-      isPremiumOnly: false,
-      category: 'Restaurant',
-      icon: Coffee,
-      color: 'dp-lime'
-    },
-    {
-      id: 3,
-      title: 'Free Delivery',
-      description: 'Free delivery on orders over $50',
-      partner: 'Pizza Palace',
-      pointsCost: 200,
-      isPremiumOnly: false,
-      category: 'Restaurant',
-      icon: Car,
-      color: 'dp-blue'
-    },
-    {
-      id: 4,
-      title: 'VIP Lounge Access',
-      description: 'Exclusive access to premium lounge area',
-      partner: 'Elite Dispensary',
-      pointsCost: 1000,
-      isPremiumOnly: true,
-      category: 'Premium',
-      icon: Crown,
-      color: 'dp-blue'
-    },
-    {
-      id: 5,
-      title: 'Free Appetizer',
-      description: 'Complimentary appetizer with main course',
-      partner: 'Fine Dining Restaurant',
-      pointsCost: 400,
-      isPremiumOnly: false,
-      category: 'Restaurant',
-      icon: Star,
-      color: 'dp-mint'
-    },
-    {
-      id: 6,
-      title: 'Travel Voucher',
-      description: '$50 travel voucher for any destination',
-      partner: 'Travel Partner',
-      pointsCost: 2000,
-      isPremiumOnly: true,
-      category: 'Premium',
-      icon: Plane,
-      color: 'dp-blue'
-    },
-    {
-      id: 7,
-      title: 'Mystery Box',
-      description: 'Random reward worth up to 1000 points',
-      partner: 'DankPass',
-      pointsCost: 750,
-      isPremiumOnly: false,
-      category: 'Special',
-      icon: Package,
-      color: 'dp-mint'
-    }
-  ];
-
-  const categories = ['All', 'Dispensary', 'Restaurant', 'Premium', 'Special'];
+  const [userPoints, setUserPoints] = useState(0);
+  const [perks, setPerks] = useState<Perk[]>([]);
+  const [loadingPerks, setLoadingPerks] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('All');
 
+  // Load user points and perks
+  useEffect(() => {
+    const loadData = async () => {
+      if (!isAuthenticated || !user) return;
+      
+      setLoadingPerks(true);
+      try {
+        // Load user profile for points
+        const profile = await getUserProfile(user.id);
+        if (profile) {
+          setUserPoints(profile.points || 0);
+        }
+
+        // Award browse perks bonus (first time only)
+        try {
+          const bonusResponse = await fetch('/api/gamification/browse-perks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: user.id })
+          });
+          if (bonusResponse.ok) {
+            const bonusData = await bonusResponse.json();
+            if (bonusData.success && profile) {
+              // Update points display
+              setUserPoints((prev) => prev + bonusData.pointsAwarded);
+            }
+          }
+        } catch (err) {
+          // Silently fail - bonus is optional
+          console.log('Browse perks bonus check:', err);
+        }
+
+        // Load active perks
+        const activePerks = await getActivePerks(true);
+        
+        // Map to Perk interface with icons
+        const mappedPerks: Perk[] = activePerks.map((p: any) => {
+          const category = p.category || 'Special';
+          const Icon = categoryIcons[category] || categoryIcons.default;
+          
+          return {
+            id: p.id,
+            title: p.title,
+            description: p.description || '',
+            partner: p.partner?.business_name || 'DankPass',
+            pointsCost: p.points_cost || 0,
+            isPremiumOnly: p.is_premium_only || false,
+            category: category,
+            icon: Icon,
+            color: 'dp-mint' // Default color
+          };
+        });
+        
+        setPerks(mappedPerks);
+      } catch (error) {
+        console.error('Error loading perks:', error);
+      } finally {
+        setLoadingPerks(false);
+      }
+    };
+
+    loadData();
+  }, [isAuthenticated, user]);
+
+  // Get unique categories from perks
+  const categories = ['All', ...Array.from(new Set(perks.map(p => p.category)))];
+
   const filteredPerks = selectedCategory === 'All' 
-    ? mockPerks 
-    : mockPerks.filter(perk => perk.category === selectedCategory || (selectedCategory === 'Premium' && perk.isPremiumOnly));
+    ? perks 
+    : perks.filter(perk => perk.category === selectedCategory || (selectedCategory === 'Premium' && perk.isPremiumOnly));
 
   const canAfford = (pointsCost: number) => userPoints >= pointsCost;
 
-  const handleRedeem = (perk: Perk) => {
+  const handleRedeem = async (perk: Perk) => {
     if (!user) {
       alert('Please sign in to redeem perks');
       return;
@@ -133,8 +128,22 @@ export default function PerksPage() {
       return;
     }
     
-    // TODO: Implement Supabase redeem logic when rewards tables exist
-    alert(`Redeeming: ${perk.title} for ${perk.pointsCost} points`);
+    try {
+      const redemption = await redeemPerk(user.id, perk.id, perk.pointsCost);
+      if (redemption) {
+        alert(`Successfully redeemed: ${perk.title}!\n\nRedemption Code: ${redemption.redemption_code}\n\nThis code expires in 30 days.`);
+        // Refresh user points
+        const profile = await getUserProfile(user.id);
+        if (profile) {
+          setUserPoints(profile.points || 0);
+        }
+      } else {
+        alert('Failed to redeem perk. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error redeeming perk:', error);
+      alert('An error occurred while redeeming the perk. Please try again.');
+    }
   };
 
   // Show loading state
@@ -214,8 +223,19 @@ export default function PerksPage() {
           </div>
 
           {/* Perks Grid */}
-          <div className="grid grid-cols-1 gap-4">
-            {filteredPerks.map((perk, index) => {
+          {loadingPerks ? (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary mx-auto mb-4"></div>
+              <p className="text-brand-subtle">Loading perks...</p>
+            </div>
+          ) : filteredPerks.length === 0 ? (
+            <div className="text-center py-12">
+              <Gift className="w-16 h-16 text-brand-subtle mx-auto mb-4 opacity-50" />
+              <p className="text-brand-subtle">No perks available at this time.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4">
+              {filteredPerks.map((perk, index) => {
               const Icon = perk.icon || Gift;
               const canRedeem = canAfford(perk.pointsCost) && (!perk.isPremiumOnly || isPremium);
               
@@ -300,7 +320,8 @@ export default function PerksPage() {
                 </motion.div>
               );
             })}
-          </div>
+            </div>
+          )}
 
           {/* Premium CTA */}
           {!isPremium && (

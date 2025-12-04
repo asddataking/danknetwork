@@ -1,15 +1,16 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Upload, Crown, TrendingUp, Gift, Camera, FileImage, CheckCircle, Clock } from 'lucide-react';
+import { Upload, Crown, TrendingUp, Gift, Camera, FileImage, CheckCircle, Clock, Sparkles, Zap, Star } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import CountUp from '@/components/rewards/CountUp';
 import { useAuth } from '@/hooks/useAuth';
 import { usePremium } from '@/hooks/usePremium';
+import { getUserProfileWithPremium, getUserReceipts, getActivePerks } from '@/lib/rewards/supabase';
 
 export default function RewardsDashboardPage() {
-  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { isPremium, loading: premiumLoading } = usePremium();
   const [dragActive, setDragActive] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
@@ -17,54 +18,83 @@ export default function RewardsDashboardPage() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   const RECEIPTS_LIMIT_FREE = 15;
+  const [userStats, setUserStats] = useState({
+    points: 0,
+    tier: 'Bronze',
+    premium: false,
+    totalSaved: 0,
+    receiptsUploaded: 0,
+    perksRedeemed: 0,
+    receiptsThisMonth: 0
+  });
+  const [recentOffers, setRecentOffers] = useState<any[]>([]);
+  const [recentReceipts, setRecentReceipts] = useState<any[]>([]);
+  const [loadingStats, setLoadingStats] = useState(true);
 
-  // TODO: Load actual user data from Supabase
-  // For now, show mock data but use real premium status
-  const userStats = {
-    points: 1250,
-    tier: 'Gold',
-    premium: isPremium,
-    totalSaved: 89.50,
-    receiptsUploaded: 12,
-    perksRedeemed: 3,
-    receiptsThisMonth: 8
-  };
+  // Load user data from database
+  useEffect(() => {
+    const loadUserData = async () => {
+      if (!isAuthenticated || authLoading || !user) return;
+      
+      setLoadingStats(true);
+      try {
 
-  const recentOffers = [
-    {
-      id: 1,
-      partner: 'Green Valley Dispensary',
-      title: '20% off edibles',
-      pointsCost: 500,
-      expiresAt: '2024-01-15'
-    },
-    {
-      id: 2,
-      partner: 'Pizza Palace',
-      title: 'Free appetizer',
-      pointsCost: 300,
-      expiresAt: '2024-01-20'
-    }
-  ];
+        // Load user profile
+        const profile = await getUserProfileWithPremium(user.id);
+        if (profile) {
+          // Calculate receipts this month
+          const receipts = await getUserReceipts(user.id, 100);
+          const now = new Date();
+          const thisMonthReceipts = receipts.filter(r => {
+            const receiptDate = new Date(r.created_at);
+            return receiptDate.getMonth() === now.getMonth() && 
+                   receiptDate.getFullYear() === now.getFullYear();
+          });
 
-  const [recentReceipts] = useState([
-    {
-      id: 1,
-      partner: 'Green Valley Dispensary',
-      amount: 45.00,
-      points: 90,
-      status: 'approved',
-      date: '2024-01-10'
-    },
-    {
-      id: 2,
-      partner: 'Pizza Palace',
-      amount: 28.50,
-      points: 57,
-      status: 'pending',
-      date: '2024-01-12'
-    }
-  ]);
+          // Calculate total saved (approximate: points / 2 = dollars)
+          const totalSaved = profile.points / 2;
+
+          setUserStats({
+            points: profile.points || 0,
+            tier: profile.tier || 'Bronze',
+            premium: profile.isPremium,
+            totalSaved,
+            receiptsUploaded: receipts.length,
+            perksRedeemed: 0, // TODO: Load from perk_redemptions
+            receiptsThisMonth: thisMonthReceipts.length
+          });
+
+          // Load recent receipts
+          const recent = receipts.slice(0, 5).map(r => ({
+            id: r.id,
+            partner: r.merchant_name || r.partner?.business_name || 'Unknown',
+            amount: r.total || 0,
+            points: r.points_awarded || 0,
+            status: r.status,
+            date: r.created_at
+          }));
+          setRecentReceipts(recent);
+        }
+
+        // Load active perks (top 3)
+        const perks = await getActivePerks(true);
+        const topPerks = perks.slice(0, 3).map(p => ({
+          id: p.id,
+          partner: p.partner?.business_name || 'DankPass',
+          title: p.title,
+          pointsCost: p.points_cost,
+          expiresAt: p.expires_at || null
+        }));
+        setRecentOffers(topPerks);
+      } catch (error) {
+        console.error('Error loading user data:', error);
+      } finally {
+        setLoadingStats(false);
+      }
+    };
+
+    loadUserData();
+  }, [isAuthenticated, authLoading, user, refreshKey]);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -103,7 +133,12 @@ export default function RewardsDashboardPage() {
   const handleUpload = async () => {
     if (uploadedFiles.length === 0) return;
     
-    // TODO: Check upload limit for free tier from Supabase
+    if (!user) {
+      alert('Please sign in to upload receipts');
+      return;
+    }
+
+    // Check upload limit for free tier
     if (!userStats.premium && userStats.receiptsThisMonth >= RECEIPTS_LIMIT_FREE) {
       alert(`You've reached your monthly limit of ${RECEIPTS_LIMIT_FREE} receipts. Upgrade to Premium for unlimited uploads!`);
       return;
@@ -112,17 +147,50 @@ export default function RewardsDashboardPage() {
     setIsUploading(true);
     
     try {
-      // TODO: Implement Supabase upload logic
-      console.log('Uploading files:', uploadedFiles);
-      
-      // Simulate upload
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Upload each file
+      const results = [];
+      for (const file of uploadedFiles) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('userId', user.id);
+        
+        const response = await fetch('/api/receipts/upload', {
+          method: 'POST',
+          body: formData,
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || 'Failed to upload receipt');
+        }
+        
+        results.push(data.receipt);
+      }
       
       setUploadedFiles([]);
-      alert('Receipt uploaded successfully! Points will be added once verified.');
+      
+      // Show summary
+      const totalPoints = results.reduce((sum, r) => sum + (r.pointsAwarded || 0), 0);
+      const approvedCount = results.filter(r => r.status === 'approved').length;
+      const pendingCount = results.filter(r => r.status === 'pending').length;
+      
+      let message = 'Receipts uploaded successfully!\n\n';
+      if (approvedCount > 0) {
+        message += `✓ ${approvedCount} automatically approved (${totalPoints} points)\n`;
+      }
+      if (pendingCount > 0) {
+        message += `⏳ ${pendingCount} pending manual review\n`;
+      }
+      message += '\nPoints will be added to your account once approved!';
+      
+      alert(message);
+      
+      // Refresh data
+      setRefreshKey(prev => prev + 1);
     } catch (error) {
       console.error('Upload error:', error);
-      alert('Failed to upload receipts. Please try again.');
+      alert(error instanceof Error ? error.message : 'Failed to upload receipts. Please try again.');
     } finally {
       setIsUploading(false);
     }
@@ -184,7 +252,7 @@ export default function RewardsDashboardPage() {
               <h1 className="text-2xl font-bold text-brand-ink">
                 Welcome to DankPass Rewards!
               </h1>
-              <p className="muted">Ready to earn some points?</p>
+              <p className="muted">Earn points, redeem perks, unlock exclusive deals</p>
             </div>
             {!isPremium && !premiumLoading && (
               <Link href="/rewards/premium" className="btn-ghost flex items-center gap-2">
@@ -192,6 +260,74 @@ export default function RewardsDashboardPage() {
                 <span className="hidden sm:inline">Go Premium</span>
               </Link>
             )}
+          </div>
+
+          {/* Premium Upgrade CTA */}
+          {!isPremium && !premiumLoading && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6 p-6 bg-gradient-to-r from-brand-primary/10 via-brand-primary/5 to-brand-primary/10 border border-brand-primary/30 rounded-2xl"
+            >
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-brand-primary/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Crown className="w-6 h-6 text-brand-primary" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-brand-ink mb-2">Unlock DankPass Premium</h3>
+                  <p className="text-sm text-brand-subtle mb-4">
+                    Get 1.5x points on every purchase, unlimited receipt uploads, exclusive perks, and full access to Daily Dispo Deals Premium.
+                  </p>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    <div className="flex items-center gap-2 text-xs text-brand-subtle">
+                      <Zap className="w-4 h-4 text-brand-primary" />
+                      <span>1.5x Points Multiplier</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-brand-subtle">
+                      <Upload className="w-4 h-4 text-brand-primary" />
+                      <span>Unlimited Uploads</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-brand-subtle">
+                      <Gift className="w-4 h-4 text-brand-primary" />
+                      <span>Exclusive Perks</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-brand-subtle">
+                      <Sparkles className="w-4 h-4 text-brand-primary" />
+                      <span>Daily Deals Premium</span>
+                    </div>
+                  </div>
+                  <Link href="/rewards/premium" className="btn-primary inline-flex items-center gap-2">
+                    <Crown className="w-4 h-4" />
+                    Upgrade to Premium - $4.20/mo
+                  </Link>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* What is DankPass Info */}
+          <div className="mb-6 p-6 bg-brand-card rounded-2xl border border-brand-subtle/10">
+            <h3 className="text-lg font-bold text-brand-ink mb-3 flex items-center gap-2">
+              <Star className="w-5 h-5 text-brand-primary" />
+              What is DankPass?
+            </h3>
+            <p className="text-sm text-brand-subtle mb-4">
+              DankPass is your all-in-one rewards program for the cannabis community. Earn points by uploading receipts from partner businesses, then redeem those points for exclusive perks, discounts, and deals.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <h4 className="font-semibold text-brand-ink mb-1 text-sm">📸 Upload Receipts</h4>
+                <p className="text-xs text-brand-subtle">Snap a photo of your receipt and earn points automatically</p>
+              </div>
+              <div>
+                <h4 className="font-semibold text-brand-ink mb-1 text-sm">🎁 Redeem Perks</h4>
+                <p className="text-xs text-brand-subtle">Use your points to unlock exclusive rewards and discounts</p>
+              </div>
+              <div>
+                <h4 className="font-semibold text-brand-ink mb-1 text-sm">🔥 Premium Benefits</h4>
+                <p className="text-xs text-brand-subtle">Get 1.5x points, unlimited uploads, and exclusive access</p>
+              </div>
+            </div>
           </div>
 
           {/* Stats Cards */}
@@ -203,7 +339,11 @@ export default function RewardsDashboardPage() {
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-brand-ink">
-                    <CountUp value={userStats.points} />
+                    {loadingStats ? (
+                      <div className="h-8 w-16 bg-brand-subtle/20 rounded animate-pulse" />
+                    ) : (
+                      <CountUp value={userStats.points} />
+                    )}
                   </div>
                   <div className="muted">Points</div>
                 </div>
@@ -216,7 +356,13 @@ export default function RewardsDashboardPage() {
                   <Gift className="w-5 h-5 text-brand-success" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-brand-ink">{userStats.tier}</div>
+                  <div className="text-2xl font-bold text-brand-ink">
+                    {loadingStats ? (
+                      <div className="h-8 w-20 bg-brand-subtle/20 rounded animate-pulse" />
+                    ) : (
+                      userStats.tier
+                    )}
+                  </div>
                   <div className="muted">Tier</div>
                 </div>
               </div>

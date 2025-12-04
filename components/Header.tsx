@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 
 export default function Header() {
   return (
@@ -25,6 +26,7 @@ export default function Header() {
 
           {/* Right side icons */}
           <nav className="flex items-center space-x-2 sm:space-x-3 md:space-x-4" aria-label="Header actions">
+            <NotificationBell />
             <button 
               className="text-white hover:text-neon-green p-1.5 sm:p-2 transition-colors duration-200"
               aria-label="Search"
