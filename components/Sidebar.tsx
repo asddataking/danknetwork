@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import ChannelsModal from './ChannelsModal';
+import { MiniActivityFeed } from './sidebar/MiniActivityFeed';
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -81,6 +82,9 @@ export default function Sidebar() {
   return (
     <aside className="hidden lg:flex flex-col w-80 bg-dark-surface border-l border-neon-green/20 h-screen sticky top-0 overflow-y-auto">
       <div className="p-6 space-y-8">
+        {/* Mini Activity Feed */}
+        <MiniActivityFeed />
+
         {/* Navigation Section */}
         <div>
           <h2 className="text-white font-bold text-sm uppercase mb-4" id="sidebar-nav-heading">NAVIGATION</h2>
