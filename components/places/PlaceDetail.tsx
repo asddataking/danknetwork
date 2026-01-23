@@ -27,7 +27,9 @@ export default function PlaceDetail({ place }: PlaceDetailProps) {
             The place data is missing required information. Please try again.
           </p>
           <Link
-            href="/munchie-map"
+            href="https://dankndevour.com/map"
+            target="_blank"
+            rel="noopener noreferrer"
             className="bg-neon-green text-black px-6 py-3 rounded-lg font-bold uppercase hover:bg-neon-green-dark transition-colors inline-block"
           >
             Back to Map
@@ -103,8 +105,10 @@ export default function PlaceDetail({ place }: PlaceDetailProps) {
         
         {/* Header Actions */}
         <div className="absolute top-4 left-4 right-4 flex items-center justify-between gap-3 z-10">
-          <Link
-            href="/munchie-map"
+          <a
+            href="https://dankndevour.com/map"
+            target="_blank"
+            rel="noopener noreferrer"
             className="bg-black/70 backdrop-blur-sm hover:bg-black/90 text-white px-4 py-2.5 rounded-lg font-bold uppercase transition-all flex items-center gap-2 text-sm shadow-lg"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -112,7 +116,7 @@ export default function PlaceDetail({ place }: PlaceDetailProps) {
             </svg>
             <span className="hidden sm:inline">Back to Map</span>
             <span className="sm:hidden">Back</span>
-          </Link>
+          </a>
           <a
             href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
               `${place.name || ''} ${place.address || ''} ${place.city || ''}`

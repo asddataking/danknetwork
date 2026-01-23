@@ -74,7 +74,7 @@ export default function PremiumGamificationCTA() {
               <span className="text-neon-green font-bold">One subscription</span> unlocks both:
             </p>
             <p className="text-white text-xs">
-              DankPass Premium + Daily Dispo Deals Premium
+              DankPass Premium + <a href="https://dailydispodeals.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-neon-green">Daily Dispo Deals Premium</a>
             </p>
           </div>
           <Link

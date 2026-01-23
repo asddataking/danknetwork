@@ -32,12 +32,14 @@ export default function DankNDevourHero() {
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4">
-          <Link
-            href="/munchie-map"
+          <a
+            href="https://dankndevour.com/map"
+            target="_blank"
+            rel="noopener noreferrer"
             className="bg-neon-green text-black px-8 py-4 font-bold rounded-lg hover:bg-neon-green-dark transition-colors duration-200 text-center uppercase"
           >
             Explore Map
-          </Link>
+          </a>
           <Link
             href="#episodes"
             className="border-2 border-white text-white px-8 py-4 font-bold rounded-lg hover:bg-white/10 transition-colors duration-200 text-center uppercase"

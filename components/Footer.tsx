@@ -67,20 +67,28 @@ export default function Footer() {
             </ul>
             <div className="mt-5 space-y-2">
               <a
-                href="https://danknddevour.com"
+                href="https://dankndevour.com"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-gray-400 hover:text-accent-turquoise text-sm font-medium transition-all duration-200 hover:translate-x-1 inline-block"
               >
-                danknddevour.com →
+                Watch Reviews (DankNDevour) →
               </a>
               <a
-                href="https://www.dankpass.com"
+                href="https://dailydispodeals.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-400 hover:text-accent-turquoise text-sm font-medium transition-all duration-200 hover:translate-x-1 inline-block"
+              >
+                Find Dispensary Deals (DailyDispoDeals) →
+              </a>
+              <a
+                href="https://dankpass.com"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-gray-400 hover:text-purple-400 text-sm font-medium transition-all duration-200 hover:translate-x-1 inline-block"
               >
-                dankpass.com →
+                Earn Rewards (DankPass) →
               </a>
             </div>
           </div>

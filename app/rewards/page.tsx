@@ -227,11 +227,15 @@ export default function RewardsDashboardPage() {
           </p>
           <div className="space-y-3">
             <p className="text-sm text-brand-subtle">
-              🔥 For now, head to Daily Dispo Deals to subscribe and get premium access across the entire network!
+              🔥 For now, head to{' '}
+              <a href="https://dailydispodeals.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-brand-primary">
+                Daily Dispo Deals
+              </a>{' '}
+              to subscribe and get premium access across the entire network!
             </p>
-            <Link href="/deals" className="btn-primary inline-block">
+            <a href="https://dailydispodeals.com" target="_blank" rel="noopener noreferrer" className="btn-primary inline-block">
               Get Started with Premium
-            </Link>
+            </a>
           </div>
         </motion.div>
       </div>
@@ -276,7 +280,10 @@ export default function RewardsDashboardPage() {
                 <div className="flex-1">
                   <h3 className="text-lg font-bold text-brand-ink mb-2">Unlock DankPass Premium</h3>
                   <p className="text-sm text-brand-subtle mb-4">
-                    Get 1.5x points on every purchase, unlimited receipt uploads, exclusive perks, and full access to Daily Dispo Deals Premium.
+                    Get 1.5x points on every purchase, unlimited receipt uploads, exclusive perks, and full access to{' '}
+                    <a href="https://dailydispodeals.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-brand-primary">
+                      Daily Dispo Deals Premium
+                    </a>.
                   </p>
                   <div className="flex flex-wrap gap-2 mb-4">
                     <div className="flex items-center gap-2 text-xs text-brand-subtle">

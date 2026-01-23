@@ -32,7 +32,14 @@ export default function PremiumPage() {
     {
       icon: TrendingUp,
       title: 'Daily Dispo Deals - Full List',
-      description: '10+ deals daily (vs 3-5 for free tier)'
+      description: (
+        <>
+          10+ deals daily (vs 3-5 for free tier) -{' '}
+          <a href="https://dailydispodeals.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-neon-green">
+            Visit DailyDispoDeals.com
+          </a>
+        </>
+      )
     },
     {
       icon: Star,
@@ -47,15 +54,14 @@ export default function PremiumPage() {
   ];
 
   const handleSubscribe = () => {
-    // Redirect to deals page which has Stripe checkout configured
-    // In the future, we could unify this into a single checkout flow
+    // Redirect to external Daily Dispo Deals site for subscription
     if (!isAuthenticated) {
-      alert('Please sign up first to continue. For now, head to the Deals page to subscribe!');
-      window.location.href = '/deals';
+      alert('Please sign up first to continue. Visit DailyDispoDeals.com to subscribe!');
+      window.open('https://dailydispodeals.com', '_blank');
       return;
     }
-    // For authenticated users, redirect to deals premium subscription
-    window.location.href = '/deals';
+    // For authenticated users, redirect to external DDD site
+    window.open('https://dailydispodeals.com', '_blank');
   };
 
   return (
@@ -107,7 +113,10 @@ export default function PremiumPage() {
                     <Check className="w-8 h-8 text-brand-success mx-auto mb-2" />
                     <p className="font-semibold text-brand-ink">You're already a Premium member!</p>
                     <p className="text-sm text-brand-subtle mt-2">
-                      Enjoy access to DankPass Premium and Daily Dispo Deals Premium
+                      Enjoy access to DankPass Premium and{' '}
+                      <a href="https://dailydispodeals.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-brand-primary">
+                        Daily Dispo Deals Premium
+                      </a>
                     </p>
                   </div>
                 ) : (
