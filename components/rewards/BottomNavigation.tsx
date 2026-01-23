@@ -9,9 +9,9 @@ export default function RewardsBottomNavigation() {
   const pathname = usePathname();
 
   const navItems = [
-    { href: '/rewards', icon: Home, label: 'Home' },
-    { href: '/rewards/perks', icon: Gift, label: 'Burn' },
-    { href: '/rewards/upload', icon: Camera, label: 'Earn' },
+    { href: '/dankpass', icon: Home, label: 'Home' },
+    { href: '/dankpass/perks', icon: Gift, label: 'Burn' },
+    { href: '/dankpass/upload', icon: Camera, label: 'Earn' },
     { href: '/rewards/profile', icon: User, label: 'Profile' },
   ];
 
@@ -27,7 +27,9 @@ export default function RewardsBottomNavigation() {
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href || 
-              (item.href === '/rewards' && pathname === '/rewards');
+              (item.href === '/dankpass' && (pathname === '/dankpass' || pathname === '/rewards')) ||
+              (item.href === '/dankpass/perks' && pathname === '/rewards/perks') ||
+              (item.href === '/dankpass/upload' && pathname === '/rewards/upload');
             
             return (
               <Link

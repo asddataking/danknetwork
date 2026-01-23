@@ -65,32 +65,32 @@ export default function Footer() {
                 </Link>
               </li>
             </ul>
-            <div className="mt-5 space-y-2">
-              <a
-                href="https://dankndevour.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-gray-400 hover:text-accent-turquoise text-sm font-medium transition-all duration-200 hover:translate-x-1 inline-block"
-              >
-                Watch Reviews (DankNDevour) →
-              </a>
-              <a
-                href="https://dailydispodeals.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-gray-400 hover:text-accent-turquoise text-sm font-medium transition-all duration-200 hover:translate-x-1 inline-block"
-              >
-                Find Dispensary Deals (DailyDispoDeals) →
-              </a>
-              <a
-                href="https://dankpass.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-gray-400 hover:text-purple-400 text-sm font-medium transition-all duration-200 hover:translate-x-1 inline-block"
-              >
-                Earn Rewards (DankPass) →
-              </a>
-            </div>
+          {/* Ecosystem */}
+          <div>
+            <h3 className="text-white font-bold mb-4 sm:mb-5 text-base sm:text-lg">Ecosystem</h3>
+            <ul className="space-y-3">
+              <li>
+                <Link href="/" className="text-gray-400 hover:text-accent-turquoise text-sm font-medium transition-all duration-200 hover:translate-x-1 inline-block">
+                  Home (DankNetwork) →
+                </Link>
+              </li>
+              <li>
+                <a href="https://dankndevour.com" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-accent-turquoise text-sm font-medium transition-all duration-200 hover:translate-x-1 inline-block">
+                  Watch Reviews (DankNDevour) →
+                </a>
+              </li>
+              <li>
+                <a href="https://dailydispodeals.com" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-accent-turquoise text-sm font-medium transition-all duration-200 hover:translate-x-1 inline-block">
+                  Find Dispensary Deals (DailyDispoDeals) →
+                </a>
+              </li>
+              <li>
+                <Link href="/dankpass" className="text-gray-400 hover:text-purple-400 text-sm font-medium transition-all duration-200 hover:translate-x-1 inline-block">
+                  Earn Rewards (DankPass) →
+                </Link>
+              </li>
+            </ul>
+          </div>
           </div>
 
           {/* Social */}
