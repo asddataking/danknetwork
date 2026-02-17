@@ -21,8 +21,8 @@ interface PricingTier {
 
 const tiers: PricingTier[] = [
   {
-    name: 'Founding Partner',
-    price: '$4,000',
+    name: 'Lit Package',
+    price: '$4,999',
     description: 'Limited availability for early adopters',
     features: [
       'Featured placement on Daily Dispo Deals',
@@ -34,11 +34,11 @@ const tiers: PricingTier[] = [
     tierValue: 'Founding',
   },
   {
-    name: 'Growth Amplifier',
-    price: '$6,000',
+    name: 'Fire Package',
+    price: '$7,499',
     description: 'Maximum reach across all channels',
     features: [
-      'Everything in Founding Partner',
+      'Everything in Lit Package',
       'Video feature on DankNDevour',
       'Priority placement in search results',
       'Event sponsorship opportunities',
@@ -48,11 +48,11 @@ const tiers: PricingTier[] = [
     tierValue: 'Growth',
   },
   {
-    name: 'Market Authority',
-    price: '$12,000',
+    name: 'Dank Package',
+    price: '$11,333',
     description: 'Complete ecosystem dominance',
     features: [
-      'Everything in Growth Amplifier',
+      'Everything in Fire Package',
       'Exclusive Ann Arbor Hash Bash presence',
       'Premium video production package',
       'Multi-channel campaign management',
@@ -86,7 +86,11 @@ export default function PricingCards() {
       {tiers.map((tier, index) => (
         <motion.div
           key={tier.name}
-          className="bg-dark-surface/80 backdrop-blur-sm border border-gray-800 rounded-xl p-8 flex flex-col hover:border-neon-green/50 transition-all duration-300"
+          className={`bg-dark-surface/80 backdrop-blur-sm border rounded-xl p-8 flex flex-col hover:border-neon-green/50 transition-all duration-300 ${
+            tier.tierValue === 'Growth'
+              ? 'border-neon-green/60 shadow-[0_0_30px_rgba(0,255,0,0.25),0_0_60px_rgba(0,255,0,0.15)]'
+              : 'border-gray-800'
+          }`}
           variants={cardVariants}
           initial="initial"
           whileInView="animate"

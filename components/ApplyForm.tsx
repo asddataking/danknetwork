@@ -217,9 +217,9 @@ export default function ApplyForm({ preselectedTier, compact = false }: ApplyFor
           className="w-full px-4 py-3 bg-dark-surface border border-gray-700 rounded-lg text-white focus:outline-none focus:border-neon-green focus:ring-1 focus:ring-neon-green"
         >
           <option value="">Select tier</option>
-          <option value="Founding">Founding Partner</option>
-          <option value="Growth">Growth Amplifier</option>
-          <option value="Authority">Market Authority</option>
+          <option value="Founding">Lit Package</option>
+          <option value="Growth">Fire Package</option>
+          <option value="Authority">Dank Package</option>
           <option value="Not sure">Not sure</option>
         </select>
       </div>
