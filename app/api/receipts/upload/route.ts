@@ -48,6 +48,14 @@ export async function POST(request: Request) {
 
     // Upload to Supabase Storage
     const supabase = getSupabaseServiceClient();
+    
+    if (!supabase) {
+      return NextResponse.json(
+        { error: 'Database not configured' },
+        { status: 503 }
+      );
+    }
+    
     const fileExt = file.name.split('.').pop();
     const fileName = `${userId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
     

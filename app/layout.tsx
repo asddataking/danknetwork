@@ -5,8 +5,6 @@ import { Analytics } from '@vercel/analytics/react';
 import './globals.css';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import BottomNav from '@/components/BottomNav';
-import Sidebar from '@/components/Sidebar';
 import PwaProvider from '@/components/PwaProvider';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -149,14 +147,10 @@ export default function RootLayout({
           Skip to main content
         </a>
         <Header />
-        <div className="flex flex-1">
-          <main id="main-content" className="flex-1 pb-20 lg:pb-0 overflow-x-hidden">
-            {children}
-          </main>
-          <Sidebar />
-        </div>
+        <main id="main-content" className="flex-1 overflow-x-hidden">
+          {children}
+        </main>
         <Footer />
-        <BottomNav />
         <Analytics />
       </body>
     </html>

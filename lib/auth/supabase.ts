@@ -35,10 +35,13 @@ export function getSupabaseClient(): SupabaseClient {
  * Get Supabase client for server-side operations (uses service role key)
  * This bypasses RLS policies and should only be used in API routes/server actions
  * Uses singleton pattern to prevent multiple GoTrueClient instances
+ * Returns null if Supabase is not configured (for builds without database)
  */
-export function getSupabaseServiceClient(): SupabaseClient {
+export function getSupabaseServiceClient(): SupabaseClient | null {
+  // Return null if Supabase is not configured (allows partner funnel to build without database)
+  // API routes should check for null and return appropriate error responses
   if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error('Supabase URL and service role key must be configured');
+    return null;
   }
   
   if (!supabaseServiceClient) {

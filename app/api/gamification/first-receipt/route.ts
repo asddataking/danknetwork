@@ -18,6 +18,13 @@ export async function POST(request: Request) {
     }
 
     const supabase = getSupabaseServiceClient();
+    
+    if (!supabase) {
+      return NextResponse.json(
+        { success: false, error: 'Database not configured' },
+        { status: 503 }
+      );
+    }
 
     // Check if this is user's first receipt
     const { count } = await supabase

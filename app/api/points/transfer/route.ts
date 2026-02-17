@@ -13,6 +13,14 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = getSupabaseServiceClient();
+    
+    if (!supabase) {
+      return NextResponse.json(
+        { error: 'Database not configured' },
+        { status: 503 }
+      );
+    }
+    
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
 

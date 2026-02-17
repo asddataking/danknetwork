@@ -110,6 +110,13 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
     // Get or create user in auth.users
     const supabase = getSupabaseServiceClient();
+    
+    if (!supabase) {
+      // If Supabase is not configured, log the webhook but don't fail
+      console.warn('[Stripe Webhook] Supabase not configured, skipping user creation');
+      return NextResponse.json({ received: true });
+    }
+    
     let userId: string | null = null;
 
     // Try to find existing user by email
@@ -201,6 +208,12 @@ async function handleSubscriptionDeleted(subscription: any) {
 
     // Update unified subscription status
     const supabase = getSupabaseServiceClient();
+    
+    if (!supabase) {
+      console.warn('[Stripe Webhook] Supabase not configured, skipping subscription update');
+      return NextResponse.json({ received: true });
+    }
+    
     const { error } = await supabase
       .from('subscriptions')
       .update({ 
@@ -240,6 +253,12 @@ async function handleSubscriptionUpdated(subscription: any) {
 
     // Update unified subscription record
     const supabase = getSupabaseServiceClient();
+    
+    if (!supabase) {
+      console.warn('[Stripe Webhook] Supabase not configured, skipping subscription update');
+      return NextResponse.json({ received: true });
+    }
+    
     const { error } = await supabase
       .from('subscriptions')
       .update({ 

@@ -30,6 +30,13 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = getSupabaseServiceClient();
+    
+    if (!supabase) {
+      return NextResponse.json(
+        { error: 'Database not configured. Please use the new application form.' },
+        { status: 503 }
+      );
+    }
 
     // Create partner application
     const { data: partner, error: partnerError } = await supabase

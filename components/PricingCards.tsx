@@ -1,8 +1,15 @@
 'use client';
 
 import { Check } from 'lucide-react';
+import { motion } from 'framer-motion';
 import Button from './Button';
 import { useRouter } from 'next/navigation';
+
+const cardVariants = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.5 }
+};
 
 interface PricingTier {
   name: string;
@@ -76,10 +83,16 @@ export default function PricingCards() {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
-      {tiers.map((tier) => (
-        <div
+      {tiers.map((tier, index) => (
+        <motion.div
           key={tier.name}
           className="bg-dark-surface/80 backdrop-blur-sm border border-gray-800 rounded-xl p-8 flex flex-col hover:border-neon-green/50 transition-all duration-300"
+          variants={cardVariants}
+          initial="initial"
+          whileInView="animate"
+          viewport={{ once: true, margin: "-50px" }}
+          custom={index}
+          whileHover={{ y: -5, transition: { duration: 0.2 } }}
         >
           <div className="flex-1">
             <h3 className="text-2xl font-bold text-white mb-2">{tier.name}</h3>
@@ -104,7 +117,7 @@ export default function PricingCards() {
           >
             Select {tier.name}
           </Button>
-        </div>
+        </motion.div>
       ))}
     </div>
   );

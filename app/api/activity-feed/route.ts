@@ -12,6 +12,14 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0');
 
     const supabase = getSupabaseServiceClient();
+    
+    if (!supabase) {
+      // Supabase not configured - return empty array for partner funnel builds
+      return NextResponse.json({
+        activities: [],
+        count: 0,
+      });
+    }
 
     // Fetch recent public activities
     const { data: activities, error } = await supabase
@@ -61,6 +69,13 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = getSupabaseServiceClient();
+    
+    if (!supabase) {
+      return NextResponse.json(
+        { error: 'Database not configured' },
+        { status: 503 }
+      );
+    }
 
     const { data: activity, error } = await supabase
       .from('activity_feed')

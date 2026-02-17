@@ -13,6 +13,13 @@ export async function POST(request: NextRequest) {
 
     const supabase = getSupabaseServiceClient();
     
+    if (!supabase) {
+      return NextResponse.json(
+        { error: 'Database not configured' },
+        { status: 503 }
+      );
+    }
+    
     // Verify user owns the collection
     const { data: collection, error: collectionError } = await supabase
       .from('deal_collections')

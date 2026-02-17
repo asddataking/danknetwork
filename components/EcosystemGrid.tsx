@@ -1,4 +1,13 @@
+'use client';
+
 import { ShoppingBag, Chrome, Video, Calendar } from 'lucide-react';
+import { motion } from 'framer-motion';
+
+const cardVariants = {
+  initial: { opacity: 0, scale: 0.9 },
+  animate: { opacity: 1, scale: 1 },
+  transition: { duration: 0.4 }
+};
 
 interface EcosystemCard {
   icon: React.ReactNode;
@@ -33,14 +42,20 @@ export default function EcosystemGrid() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       {ecosystemCards.map((card, index) => (
-        <div
+        <motion.div
           key={index}
           className="bg-dark-surface/80 backdrop-blur-sm border border-gray-800 rounded-xl p-6 hover:border-neon-green/50 transition-all duration-300"
+          variants={cardVariants}
+          initial="initial"
+          whileInView="animate"
+          viewport={{ once: true, margin: "-50px" }}
+          custom={index}
+          whileHover={{ scale: 1.05, transition: { duration: 0.2 } }}
         >
           <div className="text-neon-green mb-4">{card.icon}</div>
           <h3 className="text-xl font-bold text-white mb-2">{card.title}</h3>
           <p className="text-gray-400 text-sm">{card.description}</p>
-        </div>
+        </motion.div>
       ))}
     </div>
   );
