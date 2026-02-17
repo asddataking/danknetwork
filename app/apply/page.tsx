@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import Container from '@/components/Container';
@@ -53,14 +53,13 @@ const nextSteps = [
   },
 ];
 
-export default function ApplyPage() {
+function ApplyPageContent() {
   const searchParams = useSearchParams();
   const [tier, setTier] = useState<string>('');
 
   useEffect(() => {
     const tierParam = searchParams.get('tier');
     if (tierParam) {
-      // Map URL param to form value
       const tierMap: Record<string, string> = {
         founding: 'Founding',
         growth: 'Growth',
@@ -159,5 +158,17 @@ export default function ApplyPage() {
         </motion.div>
       </Container>
     </main>
+  );
+}
+
+export default function ApplyPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen pt-20 pb-16 flex items-center justify-center">
+        <div className="animate-pulse text-gray-400">Loading...</div>
+      </main>
+    }>
+      <ApplyPageContent />
+    </Suspense>
   );
 }
