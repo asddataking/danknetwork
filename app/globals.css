@@ -16,6 +16,31 @@ body {
   /* Prevent pull-to-refresh on iOS (optional) */
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
+  /* Brick background texture */
+  background-image: 
+    linear-gradient(45deg, rgba(10, 10, 10, 0.3) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(10, 10, 10, 0.3) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(10, 10, 10, 0.3) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(10, 10, 10, 0.3) 75%);
+  background-size: 60px 60px;
+  background-position: 0 0, 0 30px, 30px -30px, -30px 0px;
+  background-color: #0a0a0a;
+  position: relative;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 20% 50%, rgba(0, 255, 0, 0.03) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(0, 255, 136, 0.02) 0%, transparent 50%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.8) 0%, rgba(10, 10, 10, 0.9) 100%);
+  pointer-events: none;
+  z-index: -1;
 }
 
 /* Safe area insets for iPhone notches - only applies on devices that support it */
@@ -70,15 +95,45 @@ html {
   }
   
   .glow-neon-green {
-    box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.5), 0 0 40px rgba(0, 255, 0, 0.3);
   }
   
   .text-neon-green {
     color: #00ff00;
+    text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
   }
   
   .border-neon-green {
     border-color: #00ff00;
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+  }
+
+  /* Brick texture utility */
+  .brick-bg {
+    background-color: #0a0a0a;
+    background-image: 
+      linear-gradient(45deg, rgba(20, 20, 20, 0.4) 25%, transparent 25%),
+      linear-gradient(-45deg, rgba(20, 20, 20, 0.4) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, rgba(20, 20, 20, 0.4) 75%),
+      linear-gradient(-45deg, transparent 75%, rgba(20, 20, 20, 0.4) 75%);
+    background-size: 60px 60px;
+    background-position: 0 0, 0 30px, 30px -30px, -30px 0px;
+  }
+
+  /* Enhanced neon glow */
+  .neon-glow {
+    box-shadow: 
+      0 0 5px rgba(0, 255, 0, 0.5),
+      0 0 10px rgba(0, 255, 0, 0.4),
+      0 0 20px rgba(0, 255, 0, 0.3),
+      0 0 40px rgba(0, 255, 0, 0.2);
+  }
+
+  /* Glass morphism for cards */
+  .glass-card {
+    background: rgba(17, 17, 17, 0.7);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(0, 255, 0, 0.1);
   }
 }
 

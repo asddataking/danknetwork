@@ -1,163 +1,193 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
-import { Video, videos as staticVideos } from '@/data/videos';
-import FeaturedEpisodeHero from '@/components/FeaturedEpisodeHero';
-// import ChannelCarousel from '@/components/ChannelCarousel'; // Hidden for now (only 1 active channel)
-import ShopShowcase from '@/components/ShopShowcase';
-import NetworkCTA from '@/components/NetworkCTA';
-import DealsSection from '@/components/DealsSection';
-import TrendingSection from '@/components/TrendingSection';
-import FeedTheCrew from '@/components/FeedTheCrew';
-import FilterChips from '@/components/FilterChips';
-import VideoFeed from '@/components/VideoFeed';
-import NewsletterCTA from '@/components/NewsletterCTA';
-import PremiumGamificationCTA from '@/components/PremiumGamificationCTA';
+import { useEffect, useState } from 'react';
+import Container from '@/components/Container';
+import Button from '@/components/Button';
+import PricingCards from '@/components/PricingCards';
+import EcosystemGrid from '@/components/EcosystemGrid';
+import SocialRow from '@/components/SocialRow';
+import ApplyForm from '@/components/ApplyForm';
+import StickyHeader from '@/components/StickyHeader';
+import Link from 'next/link';
 
 export default function HomePage() {
-  const [selectedFilter, setSelectedFilter] = useState('all');
-  const [videos, setVideos] = useState<Video[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [preselectedTier, setPreselectedTier] = useState<string>('');
 
-  // Fetch videos from YouTube API
   useEffect(() => {
-    const fetchVideos = async () => {
-      try {
-        const response = await fetch('/api/youtube/videos?brand=danknddevour&maxResults=50');
-        if (response.ok) {
-          const data = await response.json();
-          if (data.videos && data.videos.length > 0) {
-            setVideos(data.videos);
-            setLoading(false);
-            return;
-          }
-        }
-      } catch (error) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('Error fetching YouTube videos:', error);
-        }
+    // Check for tier in URL hash
+    const hash = window.location.hash;
+    if (hash.startsWith('#tier=')) {
+      const tier = hash.replace('#tier=', '');
+      const tierMap: Record<string, string> = {
+        Founding: 'Founding',
+        Growth: 'Growth',
+        Authority: 'Authority',
+      };
+      if (tierMap[tier]) {
+        setPreselectedTier(tierMap[tier]);
       }
-      // Fallback to static data
-      setVideos(staticVideos);
-      setLoading(false);
+    }
+
+    // Listen for tier selection events
+    const handleTierSelect = (e: CustomEvent) => {
+      setPreselectedTier(e.detail);
     };
 
-    fetchVideos();
+    window.addEventListener('tierSelected' as any, handleTierSelect as EventListener);
+    return () => {
+      window.removeEventListener('tierSelected' as any, handleTierSelect as EventListener);
+    };
   }, []);
 
-  const filter = useMemo(() => {
-    if (selectedFilter === 'all') {
-      return {};
+  const scrollToForm = () => {
+    const formElement = document.getElementById('apply-form');
+    if (formElement) {
+      formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-    
-    // Check if it's a brand filter
-    if (['danknddevour', 'recipes', 'sports'].includes(selectedFilter)) {
-      return { brand: selectedFilter };
-    }
-    
-    // Otherwise it's a vibe filter
-    return { vibe: selectedFilter };
-  }, [selectedFilter]);
-
-  // Get featured episode (most recent) - memoized to avoid re-sorting
-  const featuredEpisode = useMemo(() => {
-    const source = videos.length > 0 ? videos : staticVideos;
-    return [...source].sort((a, b) => 
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    )[0];
-  }, [videos]);
-
-  // Get trending videos (most liked) - memoized to avoid re-sorting
-  const trendingVideos = useMemo(() => {
-    const source = videos.length > 0 ? videos : staticVideos;
-    return [...source].sort((a, b) => b.likes - a.likes).slice(0, 4);
-  }, [videos]);
-
-  // Structured data for SEO
-  const organizationSchema = {
-    '@context': 'https://schema.org',
-    '@type': 'Organization',
-    name: 'Dank Network',
-    url: process.env.NEXT_PUBLIC_SITE_URL || 'https://www.thedanknetwork.com',
-    logo: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.thedanknetwork.com'}/icons/DankNetwork.png.png`,
-    description: 'Michigan\'s home for dank content, food reviews, cannabis culture, and the Earn & Burn rewards system.',
-    sameAs: [
-      'https://www.youtube.com/@DankNetwork',
-      'https://twitter.com/DankNetwork',
-    ],
-    contactPoint: {
-      '@type': 'ContactPoint',
-      contactType: 'Customer Service',
-      email: 'support@thedanknetwork.com',
-    },
   };
 
   return (
     <>
-      {/* Structured Data */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
-      />
-      <div className="min-h-screen bg-black">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
-        {/* Featured Episode Hero */}
-        <div className="mb-6 sm:mb-8 lg:mb-12">
-          <FeaturedEpisodeHero episode={featuredEpisode} />
-        </div>
+      <StickyHeader />
+      <main className="min-h-screen">
+        {/* Hero Section */}
+        <section className="relative pt-20 pb-16 lg:pt-32 lg:pb-24">
+          <Container>
+            <div className="text-center max-w-4xl mx-auto">
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
+                Own the Attention of Michigan&apos;s Cannabis Consumers.
+              </h1>
+              <p className="text-xl sm:text-2xl text-gray-300 mb-8 leading-relaxed">
+                Daily deal traffic. Chrome extension visibility. Video credibility. Event spikes. All in one ecosystem.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+                <Link href="/apply">
+                  <Button variant="primary" className="w-full sm:w-auto">
+                    Apply for Partner Access
+                  </Button>
+                </Link>
+                <Button
+                  variant="secondary"
+                  onClick={scrollToForm}
+                  className="w-full sm:w-auto"
+                >
+                  View Packages
+                </Button>
+              </div>
+              <SocialRow />
+            </div>
+          </Container>
+        </section>
 
-        {/* Channel Carousel - Hidden for now (only 1 active channel) */}
-        {/* <div className="mb-12">
-          <ChannelCarousel />
-        </div> */}
+        {/* Problem Section */}
+        <section className="py-16 lg:py-24">
+          <Container>
+            <div className="max-w-3xl mx-auto">
+              <h2 className="text-3xl lg:text-4xl font-bold text-white mb-8 text-center">
+                The Problem with Traditional Marketing
+              </h2>
+              <div className="space-y-4 mb-8">
+                {[
+                  'Social reach is restricted',
+                  'Boosted posts disappear',
+                  'Loyalty apps don\'t build culture',
+                  'Paid ads lack trust',
+                ].map((problem, index) => (
+                  <div key={index} className="flex items-start gap-4">
+                    <div className="w-6 h-6 rounded-full bg-red-500/20 border border-red-500/50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-red-400 text-xs">×</span>
+                    </div>
+                    <p className="text-gray-300 text-lg">{problem}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="text-2xl lg:text-3xl font-bold text-neon-green text-center">
+                You don&apos;t need impressions. You need positioning.
+              </p>
+            </div>
+          </Container>
+        </section>
 
-        {/* Shop Showcase */}
-        <div className="mb-6 sm:mb-8 lg:mb-12">
-          <ShopShowcase />
-        </div>
+        {/* Ecosystem Section */}
+        <section className="py-16 lg:py-24 bg-dark-surface/30">
+          <Container>
+            <div className="text-center mb-12">
+              <h2 className="text-3xl lg:text-4xl font-bold text-white mb-4">
+                The Dank Network Ecosystem
+              </h2>
+              <p className="text-gray-400 text-lg max-w-2xl mx-auto">
+                Four powerful channels working together to position your brand where Michigan&apos;s cannabis consumers are already looking.
+              </p>
+            </div>
+            <EcosystemGrid />
+          </Container>
+        </section>
 
-        {/* Network CTA */}
-        <div className="mb-6 sm:mb-8 lg:mb-12">
-          <NetworkCTA />
-        </div>
+        {/* Packages Section */}
+        <section className="py-16 lg:py-24">
+          <Container>
+            <div className="text-center mb-12">
+              <h2 className="text-3xl lg:text-4xl font-bold text-white mb-4">
+                Choose Your Partnership Tier
+              </h2>
+              <p className="text-gray-400 text-lg">
+                One-time investment. No recurring fees. No contracts.
+              </p>
+            </div>
+            <PricingCards />
+          </Container>
+        </section>
 
-        {/* Deals & Gear Section */}
-        <div className="mb-6 sm:mb-8 lg:mb-12">
-          <DealsSection />
-        </div>
+        {/* Social Proof Section */}
+        <section className="py-16 lg:py-24 bg-dark-surface/30">
+          <Container>
+            <div className="max-w-3xl mx-auto text-center">
+              <h2 className="text-3xl lg:text-4xl font-bold text-white mb-6">
+                Early Traction, Real Results
+              </h2>
+              <p className="text-gray-300 text-lg leading-relaxed mb-8">
+                We&apos;re building something different. A media ecosystem that actually moves the needle for Michigan&apos;s cannabis businesses. Not impressions. Positioning.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-12">
+                <div className="glass-card rounded-xl p-6">
+                  <div className="text-3xl font-bold text-neon-green mb-2">4</div>
+                  <p className="text-gray-400">Ecosystem Channels</p>
+                </div>
+                <div className="glass-card rounded-xl p-6">
+                  <div className="text-3xl font-bold text-neon-green mb-2">1</div>
+                  <p className="text-gray-400">Unified Platform</p>
+                </div>
+                <div className="glass-card rounded-xl p-6">
+                  <div className="text-3xl font-bold text-neon-green mb-2">∞</div>
+                  <p className="text-gray-400">Growth Potential</p>
+                </div>
+              </div>
+            </div>
+          </Container>
+        </section>
 
-        {/* Trending Section */}
-        <div className="mb-6 sm:mb-8 lg:mb-12">
-          <TrendingSection title="Trending Now" videos={trendingVideos} />
-        </div>
-
-        {/* Premium Gamification CTA */}
-        <div className="mb-6 sm:mb-8 lg:mb-12">
-          <PremiumGamificationCTA />
-        </div>
-
-        {/* Feed the Crew */}
-        <div className="mb-6 sm:mb-8 lg:mb-12">
-          <FeedTheCrew />
-        </div>
-
-        {/* Newsletter CTA */}
-        <div className="mb-6 sm:mb-8 lg:mb-12">
-          <NewsletterCTA />
-        </div>
-
-        {/* Filters */}
-        <div className="mb-6">
-          <FilterChips selectedFilter={selectedFilter} onFilterChange={setSelectedFilter} />
-        </div>
-
-        {/* Video Feed */}
-        <div className="pb-12">
-          <VideoFeed filter={filter} />
-        </div>
-      </div>
-    </div>
+        {/* Apply Section */}
+        <section id="apply-form" className="py-16 lg:py-24">
+          <Container>
+            <div className="max-w-4xl mx-auto">
+              <div className="text-center mb-12">
+                <h2 className="text-3xl lg:text-4xl font-bold text-white mb-4">
+                  Apply in 60 Seconds
+                </h2>
+                <p className="text-gray-400 text-lg mb-2">
+                  No contracts. No recurring fees.
+                </p>
+                <p className="text-gray-400 text-lg">
+                  We review applications fast.
+                </p>
+              </div>
+              <div className="glass-card rounded-xl p-8 lg:p-12">
+                <ApplyForm compact={false} preselectedTier={preselectedTier} />
+              </div>
+            </div>
+          </Container>
+        </section>
+      </main>
     </>
   );
 }
-

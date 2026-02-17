@@ -139,6 +139,18 @@ export default function Footer() {
           {/* Legal */}
           <div>
             <h3 className="text-white font-bold mb-4 sm:mb-5 text-base sm:text-lg">Legal</h3>
+            <ul className="space-y-3 mb-4">
+              <li>
+                <Link href="/privacy" className="text-gray-400 hover:text-neon-green text-sm font-medium transition-all duration-200 hover:translate-x-1 inline-block">
+                  Privacy Policy
+                </Link>
+              </li>
+              <li>
+                <Link href="/terms" className="text-gray-400 hover:text-neon-green text-sm font-medium transition-all duration-200 hover:translate-x-1 inline-block">
+                  Terms of Service
+                </Link>
+              </li>
+            </ul>
             <p className="text-gray-400 text-xs mb-3 leading-relaxed">
               © {currentYear} Dank Network. All rights reserved.
             </p>

@@ -13,10 +13,10 @@ const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: {
-    default: 'Dank Network — Michigan\'s Home for Dank Content & Rewards',
-    template: '%s | Dank Network',
+    default: 'Own the Attention of Michigan\'s Cannabis Consumers | The Dank Network',
+    template: '%s | The Dank Network',
   },
-  description: 'Discover Michigan\'s hub for dank content, food reviews, cannabis culture, and the Earn & Burn rewards system. Watch, earn points, and unlock local perks.',
+  description: 'Daily deal traffic. Chrome extension visibility. Video credibility. Event spikes. All in one ecosystem. Apply for partner access.',
   keywords: [
     'Michigan food reviews',
     'Michigan dispensary deals',
@@ -54,9 +54,9 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'en_US',
     url: '/',
-    siteName: 'Dank Network',
-    title: 'Dank Network — Michigan\'s Home for Dank Content & Rewards',
-    description: 'Dank Network is Michigan\'s home for dank content and next-level rewards. We bring together food reviews, cannabis culture, local adventures, daily deals, and creator-driven entertainment—all inside one connected universe. Powered by our Earn & Burn™ Rewards, fans can watch content, complete challenges, upload receipts, and unlock perks from restaurants, dispensaries, and local businesses statewide.',
+    siteName: 'The Dank Network',
+    title: 'Own the Attention of Michigan\'s Cannabis Consumers | The Dank Network',
+    description: 'Daily deal traffic. Chrome extension visibility. Video credibility. Event spikes. All in one ecosystem. Apply for partner access.',
     images: [
       {
         url: '/icons/DankNetwork.png.png',
@@ -68,8 +68,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Dank Network — Michigan\'s Home for Dank Content & Rewards',
-    description: 'Discover Michigan\'s hub for dank content, food reviews, cannabis culture, and the Earn & Burn rewards system. Watch, earn points, and unlock local perks.',
+    title: 'Own the Attention of Michigan\'s Cannabis Consumers | The Dank Network',
+    description: 'Daily deal traffic. Chrome extension visibility. Video credibility. Event spikes. All in one ecosystem.',
     creator: '@DankNetwork',
     images: ['/icons/DankNetwork.png.png'],
   },
