@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { useEffect, useState, useRef } from 'react';
+import { motion, useScroll, useTransform } from 'framer-motion';
 import Container from '@/components/Container';
 import Button from '@/components/Button';
 import PricingCards from '@/components/PricingCards';
@@ -9,6 +9,7 @@ import EcosystemGrid from '@/components/EcosystemGrid';
 import SocialRow from '@/components/SocialRow';
 import ApplyForm from '@/components/ApplyForm';
 import StickyHeader from '@/components/StickyHeader';
+import { ParallaxLayer } from '@/components/ParallaxSection';
 import Link from 'next/link';
 
 // Animation variants
@@ -68,20 +69,38 @@ export default function HomePage() {
     }
   };
 
+  const mainRef = useRef<HTMLElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: mainRef,
+    offset: ['start start', 'end end'],
+  });
+  const heroBgY = useTransform(scrollYProgress, [0, 0.3], ['0%', '25%']);
+  const heroContentY = useTransform(scrollYProgress, [0, 0.15], ['0%', '8%']);
+
   return (
     <>
       <StickyHeader />
-      <main className="min-h-screen">
-        {/* Hero Section */}
+      <main ref={mainRef} className="min-h-screen overflow-hidden">
+        {/* Hero Section with Parallax */}
         <motion.section 
-          className="relative pt-20 pb-16 lg:pt-32 lg:pb-24"
+          className="relative pt-20 pb-16 lg:pt-32 lg:pb-24 overflow-hidden"
           initial="initial"
           animate="animate"
           variants={fadeIn}
         >
-          <Container>
+          {/* Parallax background orbs */}
+          <motion.div 
+            style={{ y: heroBgY }}
+            className="absolute inset-0 pointer-events-none"
+            aria-hidden
+          >
+            <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-neon-green/5 blur-3xl" />
+            <div className="absolute bottom-1/4 right-1/4 w-80 h-80 rounded-full bg-neon-green/5 blur-3xl" />
+          </motion.div>
+          <Container className="relative z-10">
             <motion.div 
               className="text-center max-w-4xl mx-auto"
+              style={{ y: heroContentY }}
               variants={staggerContainer}
             >
               <motion.h1 
@@ -122,12 +141,14 @@ export default function HomePage() {
 
         {/* Problem Section */}
         <motion.section 
-          className="py-16 lg:py-24"
+          className="relative py-16 lg:py-24 overflow-hidden"
           initial="initial"
           whileInView="animate"
           viewport={{ once: true, margin: "-100px" }}
           variants={fadeIn}
         >
+          <ParallaxLayer speed={-0.3} className="absolute -right-32 top-1/2 w-64 h-64 rounded-full bg-neon-green/5 blur-3xl pointer-events-none" />
+          <ParallaxLayer speed={0.2} className="absolute -left-24 bottom-1/4 w-48 h-48 rounded-full bg-neon-green/5 blur-3xl pointer-events-none" />
           <Container>
             <motion.div 
               className="max-w-3xl mx-auto"
@@ -173,22 +194,23 @@ export default function HomePage() {
 
         {/* Ecosystem Section */}
         <motion.section 
-          className="py-16 lg:py-24 bg-dark-surface/30"
+          className="relative py-16 lg:py-24 bg-dark-surface/30 overflow-hidden"
           initial="initial"
           whileInView="animate"
           viewport={{ once: true, margin: "-100px" }}
           variants={fadeIn}
         >
+          <ParallaxLayer speed={0.4} className="absolute left-1/2 -translate-x-1/2 top-0 w-[600px] h-32 bg-neon-green/5 blur-3xl pointer-events-none" />
           <Container>
             <motion.div 
               className="text-center mb-12"
               variants={fadeInUp}
             >
               <h2 className="text-3xl lg:text-4xl font-bold text-white mb-4">
-                The Dank Network Ecosystem
+                The Dank Network Cannabis Ecosystem
               </h2>
               <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-                Four powerful channels working together to position your brand where Michigan&apos;s cannabis consumers are already looking.
+                Four channels that position your dispensary where Michigan cannabis consumers are already looking: deals, extensions, video, events.
               </p>
             </motion.div>
             <motion.div variants={fadeInUp}>
@@ -199,12 +221,13 @@ export default function HomePage() {
 
         {/* Packages Section */}
         <motion.section 
-          className="py-16 lg:py-24"
+          className="relative py-16 lg:py-24 overflow-hidden"
           initial="initial"
           whileInView="animate"
           viewport={{ once: true, margin: "-100px" }}
           variants={fadeIn}
         >
+          <ParallaxLayer speed={-0.25} className="absolute right-0 top-1/3 w-72 h-72 rounded-full bg-neon-green/5 blur-3xl pointer-events-none" />
           <Container>
             <motion.div 
               className="text-center mb-12"

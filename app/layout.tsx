@@ -8,32 +8,38 @@ import Footer from '@/components/Footer';
 
 const inter = Inter({ subsets: ['latin'] });
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.thedanknetwork.com';
+
 export const metadata: Metadata = {
   title: {
-    default: 'Own the Attention of Michigan\'s Cannabis Consumers | The Dank Network',
+    default: 'Michigan Cannabis Marketing & Dispensary Deals | The Dank Network',
     template: '%s | The Dank Network',
   },
-  description: 'Daily deal traffic. Chrome extension visibility. Video credibility. Event spikes. All in one ecosystem. Apply for partner access.',
+  description: 'Michigan\'s leading cannabis media ecosystem. Daily dispensary deals, Chrome extension visibility, video content & event marketing for weed businesses. Partner with the top cannabis marketing platform.',
   keywords: [
-    'Michigan food reviews',
+    'Michigan cannabis marketing',
     'Michigan dispensary deals',
     'cannabis deals Michigan',
-    'St. Clair food review',
-    'Michigan restaurants',
+    'dispensary marketing Michigan',
+    'weed deals Michigan',
+    'marijuana marketing Michigan',
+    'cannabis media Michigan',
+    'dispensary advertising',
+    'cannabis content marketing',
+    'Michigan weed business',
+    'Ann Arbor Hash Bash',
+    'Daily Dispo Deals',
+    'cannabis partner program',
     'Dank Network',
     'DankNDevour',
-    'Dank Pass',
-    'Earn and Burn rewards',
-    'Daily Dispo Deals',
-    'Michigan content creator',
-    'Michigan media network',
-    'Michigan influencers',
-    'dank content Michigan',
-    'Michigan weed deals',
-    'Michigan loyalty program',
-    'Michigan foodie',
-    'Blue Water area',
-    'Detroit metro restaurants',
+    'Michigan cannabis consumers',
+    'dispensary visibility',
+    'cannabis brand positioning',
+    'Michigan marijuana deals',
+    'cannabis loyalty program',
+    'weed marketing platform',
+    'Blue Water area dispensaries',
+    'Detroit metro cannabis',
   ],
   authors: [{ name: 'Dank Network' }],
   creator: 'Dank Network',
@@ -43,7 +49,7 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://www.thedanknetwork.com'),
+  metadataBase: new URL(siteUrl),
   alternates: {
     canonical: '/',
   },
@@ -52,21 +58,21 @@ export const metadata: Metadata = {
     locale: 'en_US',
     url: '/',
     siteName: 'The Dank Network',
-    title: 'Own the Attention of Michigan\'s Cannabis Consumers | The Dank Network',
-    description: 'Daily deal traffic. Chrome extension visibility. Video credibility. Event spikes. All in one ecosystem. Apply for partner access.',
+    title: 'Michigan Cannabis Marketing & Dispensary Deals | The Dank Network',
+    description: 'Michigan\'s leading cannabis media ecosystem. Daily dispensary deals, Chrome extension visibility & video marketing for weed businesses.',
     images: [
       {
         url: '/icons/DankNetwork.png.png',
         width: 1200,
         height: 630,
-        alt: 'Dank Network - Michigan\'s Home for Dank Content & Rewards',
+        alt: 'The Dank Network - Michigan cannabis marketing & dispensary deals platform',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Own the Attention of Michigan\'s Cannabis Consumers | The Dank Network',
-    description: 'Daily deal traffic. Chrome extension visibility. Video credibility. Event spikes. All in one ecosystem.',
+    title: 'Michigan Cannabis Marketing & Dispensary Deals | The Dank Network',
+    description: 'Michigan\'s cannabis media ecosystem. Daily dispensary deals, video content & event marketing for weed businesses.',
     creator: '@DankNetwork',
     images: ['/icons/DankNetwork.png.png'],
   },
@@ -125,6 +131,52 @@ export default function RootLayout({
         
         {/* Prevent automatic phone number detection on iOS */}
         <meta name="format-detection" content="telephone=no" />
+        {/* Cannabis / Organization JSON-LD for SEO */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'Organization',
+              name: 'The Dank Network',
+              url: siteUrl,
+              description: 'Michigan\'s leading cannabis media ecosystem. We help dispensaries and weed businesses reach cannabis consumers through daily deals, Chrome extension visibility, video content, and event marketing.',
+              sameAs: [
+                'https://twitter.com/DankNetwork',
+                'https://www.instagram.com/thedanknetwork/',
+                'https://www.youtube.com/@DankNetwork',
+                'https://www.tiktok.com/@thedanknetwork',
+              ].filter(Boolean),
+              areaServed: {
+                '@type': 'State',
+                name: 'Michigan',
+              },
+              serviceType: [
+                'Cannabis Marketing',
+                'Dispensary Deals',
+                'Cannabis Media',
+                'Weed Business Advertising',
+              ],
+            }),
+          }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'WebSite',
+              name: 'The Dank Network',
+              url: siteUrl,
+              description: 'Michigan cannabis marketing and dispensary deals. Partner with the premier cannabis media platform for weed businesses.',
+              potentialAction: {
+                '@type': 'SearchAction',
+                target: { '@type': 'EntryPoint', urlTemplate: `${siteUrl}/apply?q={search_term_string}` },
+                'query-input': 'required name=search_term_string',
+              },
+            }),
+          }}
+        />
       </head>
       <body className={`${inter.className} bg-black min-h-screen flex flex-col`}>
         {/* Google Analytics */}
