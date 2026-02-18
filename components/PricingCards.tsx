@@ -43,7 +43,7 @@ const tiers: PricingTier[] = [
       'Priority placement in search results',
       'Event sponsorship opportunities',
       'Custom content creation',
-      'Analytics dashboard access',
+      'Free Analytics Report',
     ],
     tierValue: 'Growth',
   },
